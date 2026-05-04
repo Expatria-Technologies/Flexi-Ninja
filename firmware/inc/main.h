@@ -5,7 +5,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include "pico/stdlib.h"
-#include "pico/stdio_usb.h"
+#include "pico/stdio_uart.h"
 #include "pico/multicore.h"
 #include "pico/divider.h"
 #include "hardware/spi.h"

@@ -1,12 +1,12 @@
 cmake_minimum_required(VERSION 3.12)
 set(PICO_SDK_PATH "$ENV{HOME}/pico-sdk")
-set(CMAKE_BUILD_TYPE Release) # Release mód
+set(CMAKE_BUILD_TYPE Release) # Release mode
 
-# WIZnet chip típusának beállítása (alapértelmezett: W5100S)
-set(BOARD "pico" CACHE STRING "Pico board type (pico or pico2)")
+# Set WIZnet chip type (default: W5100S)
+set(BOARD "pico2" CACHE STRING "Pico board type (pico or pico2)")
 set_property(CACHE BOARD PROPERTY STRINGS "pico" "pico2")
 
-# Ellenőrizzük az érvényes értékeket
+# Check valid values
 if(NOT BOARD MATCHES "^(pico|pico2)$")
     message(FATAL_ERROR "Invalid board type: ${BOARD}. Must be pico or pico2")
 endif()
@@ -37,7 +37,7 @@ else()
     message(STATUS "IoLibrary_Driver already exists.")
 endif()
 
-# WIZnet forrásfájlok
+# WIZnet source files
 file(GLOB_RECURSE WIZNET_SOURCES
     "ioLibrary_Driver/Internet/DHCP/*.c"
     "ioLibrary_Driver/Ethernet/*.c"
@@ -95,13 +95,17 @@ target_include_directories(stepper-ninja PRIVATE
 target_compile_definitions(stepper-ninja PRIVATE
     _WIZCHIP_=${WIZCHIP_TYPE}
     WIZCHIP_USE_CS=1
+    PICO_DEFAULT_UART=1
+    PICO_DEFAULT_UART_TX_PIN=4
+    PICO_DEFAULT_UART_RX_PIN=5
 )
 
 target_link_libraries(stepper-ninja
     pico_stdlib
     hardware_spi
     pico_multicore
-    pico_stdio_usb
+    pico_stdio_uart
+    hardware_flash
     hardware_gpio
     hardware_dma
     hardware_i2c

@@ -2,7 +2,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include "wizchip_conf.h"
-#include "pico/stdio_usb.h"
+#include "pico/stdio_uart.h"
 #include "pico/stdlib.h"
 #include "hardware/pwm.h"
 #include "flash_config.h"

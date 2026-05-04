@@ -50,7 +50,7 @@
 #define GP34 34
 #define GP35 35
 #define GP36 36
-#define GP37 38
+#define GP37 37
 #define GP38 38
 #define GP39 39
 #define GP40 40
@@ -91,13 +91,13 @@
 #define    GP_40  21   /*!< B+, Pin J8-40  */
 
 // SPI port definition (GPIO)
-#define SPI_PORT        spi0
-#define GPIO_MISO       GP16
-#define GPIO_CS         GP17
-#define GPIO_SCK        GP18
-#define GPIO_MOSI       GP19
+#define SPI_PORT        spi1
+#define GPIO_MISO       GP43
+#define GPIO_CS         GP41
+#define GPIO_SCK        GP42
+#define GPIO_MOSI       GP40
 #define GPIO_RESET      GP00
-#define GPIO_INT        GP21
+#define GPIO_INT        GP08 //TODO, using this for testing.
 
 // PICO pin to GPIO
 #define PIN_NULL GP_NULL
@@ -130,7 +130,7 @@
 #define PIN_32 27
 #define PIN_34 28 
 
-#define LED_GPIO      GP25
+#define LED_GPIO      GP07 //TODO, using for debug
 
 #define IMR_RECV      0x04
 #define Sn_IMR_RECV   0x04

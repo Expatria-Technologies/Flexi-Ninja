@@ -429,8 +429,7 @@ void core1_entry() {
 
 int main() {
 
-    // stdio_init_all();
-    stdio_usb_init();
+    stdio_init_all();
     gpio_init(LED_GPIO);
     gpio_set_dir(LED_GPIO, GPIO_OUT);
     sleep_ms(2000);
@@ -457,14 +456,14 @@ int main() {
     printf("E-mail:atrex66@gmail.com\n");
     printf("\n");
 
-    if (!set_sys_clock_khz(pico_clock / 1000, true))
-    {
-        printf("Clock can not configure to %d");
-        while (1)
-        {
-            sleep_ms(1000);
-        }
-    }
+//    if (!set_sys_clock_khz(pico_clock / 1000, true))
+//    {
+//        printf("Clock can not configure to %d");
+//        while (1)
+//        {
+//            sleep_ms(1000);
+//        }
+//    }
     
     #if raspberry_pi_spi == 0
 
@@ -500,7 +499,7 @@ int main() {
     network_init();
     #else
     printf("Raspberry PI spi communication.\n");
-    spi_init(SPI_PORT, 1000 * 1000);
+    spi_init(SPI_PORT, 4000 * 1000); //4mhz for now
     spi_set_slave(SPI_PORT, true);
     spi_set_format(SPI_PORT, 8, SPI_CPOL_1, SPI_CPHA_1, SPI_MSB_FIRST);
     gpio_set_function(GPIO_MOSI, GPIO_FUNC_SPI);
@@ -514,15 +513,21 @@ int main() {
 
     dma_channel_config_tx = dma_channel_get_default_config(dma_tx);
     channel_config_set_transfer_data_size(&dma_channel_config_tx, DMA_SIZE_8);
-    channel_config_set_dreq(&dma_channel_config_tx, DREQ_SPI0_TX);
+    channel_config_set_dreq(&dma_channel_config_tx, DREQ_SPI1_TX);
     channel_config_set_read_increment(&dma_channel_config_tx, true);
     channel_config_set_write_increment(&dma_channel_config_tx, false);
 
     dma_channel_config_rx = dma_channel_get_default_config(dma_rx);
     channel_config_set_transfer_data_size(&dma_channel_config_rx, DMA_SIZE_8);
-    channel_config_set_dreq(&dma_channel_config_rx, DREQ_SPI0_RX);
+    channel_config_set_dreq(&dma_channel_config_rx, DREQ_SPI1_RX);
     channel_config_set_read_increment(&dma_channel_config_rx, false);
     channel_config_set_write_increment(&dma_channel_config_rx, true);
+
+    // Configure GPIO_INT as input with pull-up
+    gpio_init(GPIO_INT);
+    gpio_set_dir(GPIO_INT, GPIO_IN);
+    gpio_pull_up(GPIO_INT);
+    gpio_set_input_hysteresis_enabled(GPIO_INT, false);
 
     #endif
     
@@ -1007,7 +1012,14 @@ void __not_in_flash_func(handle_udp)() {
             #else 
                 memset(packet_buffer, 0, SPI_TRANSFER_SIZE);
                 memcpy(packet_buffer, (uint8_t *)tx_buffer, tx_size);
-                spi_read_fulldup(spi_rx_frame, packet_buffer, SPI_TRANSFER_SIZE);
+                //spi_read_fulldup(spi_rx_frame, packet_buffer, SPI_TRANSFER_SIZE);
+                
+                for (int i = 0; i < SPI_TRANSFER_SIZE; i++) {
+                    while (!(spi_get_hw(SPI_PORT)->sr & (1 << 1))); // Wait until TX FIFO not full (TNF=1)
+                    spi_get_hw(SPI_PORT)->dr = (uint8_t)(i + 0x42); // Known pattern: 0x42, 0x43, etc.
+                }
+                while (spi_get_hw(SPI_PORT)->sr & (1 << 4)); // Wait until transfer complete (BSY=0)
+
                 memcpy((uint8_t *)rx_buffer, spi_rx_frame, rx_size);
                 int len = rx_size; // for compatibility
             #endif
@@ -1035,7 +1047,9 @@ static void spi_read_fulldup(uint8_t *pBuf, uint8_t *sBuf,  uint16_t len)
 {
     channel_config_set_read_increment(&dma_channel_config_tx, true);
     channel_config_set_write_increment(&dma_channel_config_tx, false);
-    channel_config_set_dreq(&dma_channel_config_tx, DREQ_SPI0_TX);
+    uint8_t tx_dreq = spi_get_dreq(SPI_PORT, true);
+    //channel_config_set_dreq(&dma_channel_config_tx, DREQ_SPI1_TX);
+    channel_config_set_dreq(&dma_channel_config_tx, tx_dreq);
     dma_channel_configure(dma_tx, &dma_channel_config_tx,
                           &spi_get_hw(SPI_PORT)->dr,
                           sBuf,
@@ -1044,7 +1058,9 @@ static void spi_read_fulldup(uint8_t *pBuf, uint8_t *sBuf,  uint16_t len)
 
     channel_config_set_read_increment(&dma_channel_config_rx, false);
     channel_config_set_write_increment(&dma_channel_config_rx, true);
-    channel_config_set_dreq(&dma_channel_config_rx, DREQ_SPI0_RX);
+    uint8_t rx_dreq = spi_get_dreq(SPI_PORT, false);
+    //channel_config_set_dreq(&dma_channel_config_rx, DREQ_SPI1_RX);
+    channel_config_set_dreq(&dma_channel_config_rx, rx_dreq);
     dma_channel_configure(dma_rx, &dma_channel_config_rx,
                           pBuf,                     
                           &spi_get_hw(SPI_PORT)->dr,
