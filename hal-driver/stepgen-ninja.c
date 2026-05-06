@@ -348,7 +348,7 @@ static void init_socket(module_data_t *arg)
 static void init_spi(void)
 {
     if (!bcm2835_init_rt()) {
-        printf("bcm2835 init failed\n");
+        rtapi_print_msg(RTAPI_MSG_ERR,	"bcm2835 init failed\n");
         return;
     }
 
@@ -454,6 +454,7 @@ static int _send(void *arg)
         return sendto(d->sockfd, tx_buffer, tx_size, MSG_DONTROUTE | MSG_DONTWAIT, &d->remote_addr, sizeof(d->remote_addr));
     #else
         bcm2835_gpio_clr(raspi_int_out);
+        usleep(50);
         memset(spi_tx_buffer, 0, sizeof(spi_tx_buffer));
         memset(spi_rx_buffer, 0, sizeof(spi_rx_buffer));
         memcpy(spi_tx_buffer, tx_buffer, tx_size);

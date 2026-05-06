@@ -1,0 +1,24 @@
+{
+  "build": {
+    "cpu": "cortex-m33",
+    "f_cpu": "150000000L",
+    "hwids": [
+      ["0x2E8A", "0x0009"],
+      ["0x2E8A", "0x000A"]
+    ],
+    "mcu": "rp2350",
+    "pico_board": "pico2"
+  },
+  "frameworks": ["picosdk"],
+  "name": "Flexi-2350",
+  "platform": "raspberrypi",
+  "upload": {
+    "maximum_ram_size": 524288,
+    "maximum_size": 4194304,
+    "protocol": "picotool",
+    "use_1200bps_touch": true,
+    "require_upload_port": false
+  },
+  "url": "https://github.com/Expatria-Technologies/FlexiHAL_2350",
+  "vendor": "Expatria"
+}

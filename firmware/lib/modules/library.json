@@ -1,0 +1,7 @@
+{
+  "name": "stepper-ninja-modules",
+  "version": "1.0.0",
+  "build": {
+    "srcDir": "."
+  }
+}
