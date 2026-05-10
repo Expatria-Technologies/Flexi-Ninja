@@ -460,16 +460,9 @@ int main() {
     load_configuration();
 
     #ifndef RASPBERRY_PI_SPI
-        #if _WIZCHIP_==W5100S
-            #pragma message "W5100S init"
-            w5100s_init();
-            w5100s_interrupt_init();
-        #endif
-        #if _WIZCHIP_==W5500
-            #pragma message "W5500 init"
-            w5100s_init();
-            w5500_interrupt_init();
-        #endif
+        #pragma message "W5500 init"
+        w5100s_init();
+        w5500_interrupt_init();
     network_init();
     #else
     printf("Raspberry PI spi communication.\n");
@@ -1030,21 +1023,6 @@ void __not_in_flash_func(handle_udp)() {
     }
 }
 
-#if _WIZCHIP_ == W5100S
-void w5100s_interrupt_init() {
-    gpio_init(GPIO_INT);
-    gpio_set_dir(GPIO_INT, GPIO_IN);
-    gpio_pull_up(GPIO_INT);
-    gpio_set_input_hysteresis_enabled(GPIO_INT, false); 
-
-    uint8_t sn_imr = Sn_IMR_RECV;  
-    
-    setIMR(0x01);
-    setIMR2(0x00);
-    setSn_IMR(SOCKET_DHCP, sn_imr);
-}
-#endif
-
 #if _WIZCHIP_ == W5500
 void w5500_interrupt_init() {
     gpio_init(GPIO_INT);
@@ -1056,7 +1034,7 @@ void w5500_interrupt_init() {
 }
 #endif
 // -------------------------------------------
-// W5100S Init
+// Wiznet chip Init
 // -------------------------------------------
 void w5100s_init() {
 

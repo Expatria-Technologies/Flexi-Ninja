@@ -64,12 +64,9 @@ int32_t _sendto(uint8_t sn, uint8_t *buf, uint16_t len, uint8_t *addr, uint16_t 
 int32_t _recvfrom(uint8_t sn, uint8_t *buf, uint16_t len, uint8_t *addr, uint16_t *port);
 void update_speed(uint8_t enc_index);
 void handle_udp();
-#if defined(_WIZCHIP_W5100S) || defined(_WIZCHIP_W5500)
-void w5100s_interrupt_init();
 void w5500_interrupt_init();
 void w5100s_init();
 void network_init();
-#endif
 
 uint8_t xor_checksum(const uint8_t *data, uint8_t len);
 void printbuf(uint8_t *buf, size_t len);

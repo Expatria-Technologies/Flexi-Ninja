@@ -155,7 +155,7 @@ int8_t socket(uint8_t sn, uint8_t protocol, uint16_t port, uint8_t flag)
    	      {
    	         if((flag & SF_MULTI_ENABLE)==0) return SOCKERR_SOCKFLAG;
    	      }
-   	      #if _WIZCHIP_ == 5500
+   	      #if _WIZCHIP_ == W5500
       	      if(flag & SF_UNI_BLOCK)
       	      {
       	         if((flag & SF_MULTI_ENABLE) == 0) return SOCKERR_SOCKFLAG;
