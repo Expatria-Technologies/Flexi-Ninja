@@ -1,1 +1,1 @@
-../firmware/modules/inc/jump_table.h
+../firmware/lib/modules/inc/jump_table.h

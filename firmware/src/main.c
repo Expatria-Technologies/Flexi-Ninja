@@ -501,6 +501,11 @@ int main() {
     printf("Raspberry PI spi communication.\n");
     spi_init(SPI_PORT, 4000 * 1000); //4mhz for now
     spi_set_slave(SPI_PORT, true);
+    // In slave mode CPSR must be >= 12 and SCR = 0 for correct operation.
+    // spi_set_baudrate (called by spi_init) computes these for master mode
+    // and may set CPSR < 12, causing unreliable slave behaviour.
+    spi_get_hw(SPI_PORT)->cpsr = 12;
+    hw_write_masked(&spi_get_hw(SPI_PORT)->cr0, 0, SPI_SSPCR0_SCR_BITS);
     spi_set_format(SPI_PORT, 8, SPI_CPOL_1, SPI_CPHA_1, SPI_MSB_FIRST);
     gpio_set_function(GPIO_MOSI, GPIO_FUNC_SPI);
     gpio_set_function(GPIO_SCK, GPIO_FUNC_SPI);
@@ -795,7 +800,6 @@ int32_t __time_critical_func(_recvfrom)(uint8_t sn, uint8_t *buf, uint16_t len, 
 
 void handle_data(){
     tx_buffer->jitter = get_absolute_time() - last_packet_time;
-    //printf("%d Received bytes: %d\n", rx_counter, len);
     last_packet_time = get_absolute_time();
 
     if (rx_buffer->packet_id != rx_counter ) {
@@ -989,6 +993,28 @@ void stop_timer() {
 // -------------------------------------------
 // UDP handler
 // -------------------------------------------
+static void __not_in_flash_func(spi_read_fulldup)(uint8_t *pBuf, uint8_t *sBuf, uint16_t len)
+{
+    // Pre-fill TX FIFO completely BEFORE any read
+    uint16_t tx_done = 0, rx_done = 0;
+    while (tx_done < len && spi_is_writable(SPI_PORT)) {
+        spi_get_hw(SPI_PORT)->dr = sBuf[tx_done++];
+    }
+
+    while (rx_done < len) {
+        if (spi_is_readable(SPI_PORT)) {
+            pBuf[rx_done++] = (uint8_t)spi_get_hw(SPI_PORT)->dr;
+        }
+        if (tx_done < len && spi_is_writable(SPI_PORT)) {
+            spi_get_hw(SPI_PORT)->dr = sBuf[tx_done++];
+        }
+    }
+
+    while (spi_is_readable(SPI_PORT)) {
+        (void)spi_get_hw(SPI_PORT)->dr;
+    }
+}
+
 void __not_in_flash_func(handle_udp)() {
     gpio_pull_up(GPIO_INT);
     uint8_t *packet_buffer;
@@ -1012,14 +1038,7 @@ void __not_in_flash_func(handle_udp)() {
             #else 
                 memset(packet_buffer, 0, SPI_TRANSFER_SIZE);
                 memcpy(packet_buffer, (uint8_t *)tx_buffer, tx_size);
-                //spi_read_fulldup(spi_rx_frame, packet_buffer, SPI_TRANSFER_SIZE);
-                
-                for (int i = 0; i < SPI_TRANSFER_SIZE; i++) {
-                    while (!(spi_get_hw(SPI_PORT)->sr & (1 << 1))); // Wait until TX FIFO not full (TNF=1)
-                    spi_get_hw(SPI_PORT)->dr = (uint8_t)(i + 0x42); // Known pattern: 0x42, 0x43, etc.
-                }
-                while (spi_get_hw(SPI_PORT)->sr & (1 << 4)); // Wait until transfer complete (BSY=0)
-
+                spi_read_fulldup(spi_rx_frame, packet_buffer, SPI_TRANSFER_SIZE);
                 memcpy((uint8_t *)rx_buffer, spi_rx_frame, rx_size);
                 int len = rx_size; // for compatibility
             #endif
@@ -1041,34 +1060,6 @@ void __not_in_flash_func(handle_udp)() {
             }
         }
     }
-}
-
-static void spi_read_fulldup(uint8_t *pBuf, uint8_t *sBuf,  uint16_t len)
-{
-    channel_config_set_read_increment(&dma_channel_config_tx, true);
-    channel_config_set_write_increment(&dma_channel_config_tx, false);
-    uint8_t tx_dreq = spi_get_dreq(SPI_PORT, true);
-    //channel_config_set_dreq(&dma_channel_config_tx, DREQ_SPI1_TX);
-    channel_config_set_dreq(&dma_channel_config_tx, tx_dreq);
-    dma_channel_configure(dma_tx, &dma_channel_config_tx,
-                          &spi_get_hw(SPI_PORT)->dr,
-                          sBuf,
-                          len,                      
-                          false);                   
-
-    channel_config_set_read_increment(&dma_channel_config_rx, false);
-    channel_config_set_write_increment(&dma_channel_config_rx, true);
-    uint8_t rx_dreq = spi_get_dreq(SPI_PORT, false);
-    //channel_config_set_dreq(&dma_channel_config_rx, DREQ_SPI1_RX);
-    channel_config_set_dreq(&dma_channel_config_rx, rx_dreq);
-    dma_channel_configure(dma_rx, &dma_channel_config_rx,
-                          pBuf,                     
-                          &spi_get_hw(SPI_PORT)->dr,
-                          len,                      
-                          false);                   
-
-    dma_start_channel_mask((1u << dma_tx) | (1u << dma_rx));
-    dma_channel_wait_for_finish_blocking(dma_rx);
 }
 
 #if _WIZCHIP_ == W5100S

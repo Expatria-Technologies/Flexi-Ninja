@@ -97,7 +97,7 @@
 #define GPIO_SCK        GP42
 #define GPIO_MOSI       GP40
 #define GPIO_RESET      GP00
-#define GPIO_INT        GP08 //TODO, using this for testing.
+#define GPIO_INT        GP08
 
 // PICO pin to GPIO
 #define PIN_NULL GP_NULL

@@ -1,1 +1,1 @@
-../firmware/inc/config.h
+../firmware/include/config.h

@@ -1,1 +1,1 @@
-../firmware/inc/kbmatrix.h
+../firmware/include/kbmatrix.h

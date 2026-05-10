@@ -1,1 +1,1 @@
-../firmware/inc/internals.h
+../firmware/include/internals.h

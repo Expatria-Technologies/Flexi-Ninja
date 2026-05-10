@@ -1,1 +1,1 @@
-../firmware/inc/footer.h
+../firmware/include/footer.h
