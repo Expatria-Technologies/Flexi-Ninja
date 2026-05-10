@@ -65,9 +65,9 @@ uint32_t total_cycles;
  */
 #define offset 10000
 
-const uint8_t input_pins[] = in_pins;
+const GpioPin input_pins[] = INPUT_PINS;
 const uint8_t output_pins[] = out_pins;
-const uint8_t in_pins_no = sizeof(input_pins);
+const uint8_t in_pins_no = sizeof(input_pins) / sizeof(input_pins[0]);
 const uint8_t out_pins_no = sizeof(output_pins);
 
 typedef struct {
@@ -358,7 +358,7 @@ static int bb_hal_setup_pins(module_data_t *d, int j, int comp_id,
 
     for (int i = 0; i < in_pins_no; i++) {
         memset(name, 0, nsize);
-        snprintf(name, nsize, module_name ".%d.input.gp%d", j, input_pins[i]);
+        snprintf(name, nsize, module_name ".%d.input.%s", j, input_pins[i].name);
         r = hal_pin_bit_newf(HAL_OUT, &d->input[i], comp_id, name, j);
         if (r < 0) {
             rtapi_print_msg(RTAPI_MSG_ERR,
@@ -367,7 +367,7 @@ static int bb_hal_setup_pins(module_data_t *d, int j, int comp_id,
         }
 
         memset(name, 0, nsize);
-        snprintf(name, nsize, module_name ".%d.input.gp%d-not", j, input_pins[i]);
+        snprintf(name, nsize, module_name ".%d.input.%s-not", j, input_pins[i].name);
         r = hal_pin_bit_newf(HAL_OUT, &d->input_not[i], comp_id, name, j);
         if (r < 0) {
             rtapi_print_msg(RTAPI_MSG_ERR,
@@ -394,10 +394,10 @@ static int bb_hal_setup_pins(module_data_t *d, int j, int comp_id,
 static void bb_hal_process_recv(module_data_t *d)
 {
     for (uint8_t i = 0; i < in_pins_no; i++) {
-        if (input_pins[i] < 32) {
-            *d->input[i] = (rx_buffer->inputs[0] >> (input_pins[i] & 31)) & 1;
+        if (input_pins[i].gpio < 32) {
+            *d->input[i] = (rx_buffer->inputs[0] >> (input_pins[i].gpio & 31)) & 1;
         } else {
-            *d->input[i] = (rx_buffer->inputs[1] >> ((input_pins[i] - 32) & 31)) & 1;
+            *d->input[i] = (rx_buffer->inputs[1] >> ((input_pins[i].gpio - 32) & 31)) & 1;
         }
         *d->input_not[i] = !(*d->input[i]);
     }

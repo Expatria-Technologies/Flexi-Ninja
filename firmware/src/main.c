@@ -2,9 +2,61 @@
 #include "quadrature_encoder_substep.h"
 #define ENCODER_IDLE_STOP_SAMPLES 2500
 
-// Flexi-Ninja
-// Based on stepper-ninja but Viola Zsolt (atrex66@gmail.com)
+// Name: Flexi-Ninja
+
+//    ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣠⣤⠤⠤⠤⠤⣤⣀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+//    ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣠⠶⠋⠉⠀⠀⠀⠀⠀⠀⠀⠀⠉⠑⢦⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+//    ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⡞⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⢦⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+//    ⠀⠀⠀⠀⣤⣶⡶⣶⢦⠀⠀⠀⠀⠀⠀⠀⡾⠀⠀⠀⢀⣠⠀⠀⠀⠀⠀⠀⠀⠠⢤⣀⠀⠀⠸⣧⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+//    ⠀⠀⠀⠸⡏⠁⣠⡤⠾⣆⠀⠀⠀⠀⠀⢸⡇⢠⠖⣾⣭⣀⡀⠀⠀⠀⠀⠀⠀⣀⣠⣼⡷⢶⡀⢻⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+//    ⠀⠀⠀⠀⢹⣿⠋⠈⣩⢿⡄⠀⠀⠀⠀⣾⠀⣿⠀⠀⠉⠉⠚⠻⠿⠶⠾⠿⠛⢋⠉⠁⠀⠈⡇⠘⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+//    ⠀⠀⠀⠀⠈⢯⣉⠟⠛⣲⢷⡀⠀⠀⠀⡿⠀⢻⣄⡀⠀⠀⠀⠀⢀⡴⠂⣀⠴⠃⠀⠀⢀⣰⠇⠀⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+//    ⠀⠀⠀⠀⠀⠘⡏⢒⡶⠧⢬⣧⠀⠀⠀⡇⠀⢸⡏⠉⣷⣶⣲⠤⢤⣶⣯⡥⠴⣶⣶⣎⠉⢻⠀⠀⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+//    ⠀⠀⠀⠀⠀⠀⠻⡷⠶⣤⣏⣙⡆⠀⠀⡇⠀⢸⡆⠀⠑⢆⣩⡿⣖⣀⣰⡶⢯⣁⡴⠃⠀⣸⡄⠀⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+//    ⠀⠀⠀⠀⠀⠀⠀⢧⠾⢥⣰⣟⣹⡄⠀⣧⠀⣼⠘⢦⣠⠴⠛⠋⠉⠉⠉⠉⠛⠳⢤⣀⡴⢻⡇⠀⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+//    ⠀⠀⠀⠀⠀⠀⠀⠘⣇⣼⣋⣩⡏⣳⠀⢻⡀⢸⡴⠚⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠉⠳⣼⡇⣶⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+//    ⠀⠀⠀⠀⠀⠀⠀⠀⠸⣤⢾⣡⣾⣽⣷⢼⡇⢿⡄⠀⠀⠀⠀⠠⣄⡀⢀⡀⠀⠀⠀⠀⠀⢸⠇⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+//    ⠀⠀⠀⠀⠀⠀⠀⢀⣀⣿⠿⣓⣋⡥⣿⠟⢷⠘⣿⣆⠀⠀⠀⠀⠀⠉⠉⠀⠀⠀⠀⠀⣰⡿⢀⡏⢳⡦⣤⣀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+//    ⠀⠀⠀⠀⠀⢀⣴⣯⣁⣠⣿⠁⠀⠀⠻⡄⠀⠀⠸⣎⢧⡀⠀⠀⠀⠀⠀⢰⣿⣷⣀⣼⣫⠃⠀⠀⣸⠇⠀⠀⠙⣦⣀⣀⣀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+//    ⠀⠀⠀⢰⠞⣍⡍⠉⠉⣿⢹⡀⠀⠀⠀⠱⡄⠀⠀⠈⠳⢽⣦⣀⠀⠀⢰⣿⣿⣟⣿⠕⠋⠀⠀⡰⠃⠀⠀⠀⣼⠃⠀⠉⢉⣭⠽⢶⠀⠀⠀⠀⠀⠀⠀⠀
+//    ⠀⠀⠀⢨⡷⠋⠙⢷⡀⠹⣾⣧⠀⠀⠀⠀⠈⠦⣄⠀⠀⠀⠀⠈⠉⠉⣿⣾⠁⣼⡇⠀⠀⡠⠞⠁⠀⠀⠀⣸⠏⠀⠀⣠⡞⠉⠻⣾⡀⠀⠀⠀⠀⠀⠀⠀
+//    ⠀⠀⢰⡟⠀⠀⠀⠀⢻⡄⢷⠙⣇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⡏⡏⠀⠈⡇⠀⠀⠀⠀⠀⠀⠀⣴⠏⠀⠀⢠⡟⠀⠀⠀⠘⣷⠀⠀⠀⠀⠀⠀⠀
+//    ⠀⠀⣾⡇⠀⠀⠀⠀⠀⢿⡘⣇⠙⣧⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⢱⠁⠐⠲⡇⢀⡀⠀⠀⠀⠀⣼⠃⠀⠀⢀⡾⠀⠀⠀⠀⠀⢹⣧⠀⠀⠀⠀⠀⠀
+//    ⠀⢠⣿⡇⠀⠀⠀⠀⠀⣨⡇⠸⡄⠈⠻⣦⡀⠀⠀⠀⠀⠀⠀⠀⢀⡏⠘⣀⣀⣀⡟⠉⣿⠀⠀⢠⡞⠁⠀⠀⠀⣸⣃⠀⠀⠀⠀⠀⠘⡏⢧⠀⠀⠀⠀⠀
+//    ⠀⣿⠀⢻⡀⠀⣠⠔⠛⠉⠻⣄⠹⡄⠀⠈⠙⠶⢤⣀⡀⠀⠀⢀⣿⣟⡻⣷⠛⠛⠋⢉⣉⣻⡖⠋⠀⠀⠀⠀⡀⡏⢉⠟⠦⣀⠀⠀⠀⢧⠈⣇⠀⠀⠀⠀
+//    ⢸⠃⠀⠈⣷⠈⢁⡄⠀⠀⠀⠘⢦⠘⣦⠀⠀⠀⠀⠈⠫⣭⣽⠟⠁⠈⢳⠈⡇⠀⠀⠀⠈⠉⠙⣷⠀⠀⠀⠀⢸⡽⠃⠀⠀⠈⡀⠀⠀⠘⢧⡸⡆⠀⠀⠀
+//    ⢸⠀⠀⠀⠁⠀⡞⠀⠀⠀⠀⠀⠘⣇⠈⢳⡀⠀⠀⠀⣠⣾⡌⣆⠀⠀⢸⠀⣧⣀⣹⠤⣶⡀⢀⣿⠀⠀⠀⠀⣾⠁⠀⠀⠀⠀⣇⠀⠀⠀⠈⠈⢹⡀⠀⠀
+//    ⢸⠀⡀⠀⠀⢸⠁⠀⢀⣠⡤⠶⠒⠛⠁⠉⠉⠉⠉⠉⠁⠈⣿⠘⢦⢀⡞⢰⣇⡀⢹⡧⣄⣩⡽⠃⠀⠀⠀⢸⠃⠀⠀⠀⠀⠀⢸⡆⠀⠀⠀⠐⡄⣧⠀⠀
+//    ⢸⡀⣇⠀⠀⢸⣦⡞⢻⠉⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⠈⢷⡈⠻⣄⣾⠁⢉⡿⠁⠀⠀⠀⠀⠀⠀⠀⢸⠀⠀⠀⠀⠀⢀⣠⡇⠀⠀⠀⠀⠹⣻⠀⠀
+//    ⠀⣇⢸⠀⢀⣴⣿⡇⠘⡆⠀⠀⠀⠀⠀⠀⠀⠀⢀⣤⠞⠁⠀⠈⠛⣦⣿⡿⠒⢯⣀⠀⠀⠀⠀⠀⠀⠀⠀⠘⣇⠀⣀⣤⡴⢿⡉⠙⢶⣄⣀⡀⠀⠹⡄⠀
+//    ⠀⠘⣾⡇⢸⠏⠀⣧⠀⢻⡀⠀⠀⠀⣀⣠⠶⠚⠉⠀⠀⠀⠀⠀⣠⡞⠁⠀⠀⠀⠙⠳⣄⠀⠀⠀⠀⠀⠀⢀⡿⠊⠁⠀⠀⠀⢱⡄⠈⣧⠉⠓⢄⠀⢧⠀
+//    ⠀⠀⢹⡇⢸⠀⠀⠸⣇⠀⢳⡀⠈⠉⠀⠀⠀⠀⠀⠀⠀⠀⢀⡼⠿⡶⢞⣛⣛⣓⣒⣾⣶⣿⣲⣦⣤⠤⠚⠁⠀⠀⠀⠀⠀⠀⠀⢳⠀⢸⡆⠀⠀⠀⢿⡆
+//    ⠀⠀⢸⡇⠀⠀⠀⠀⠙⣷⡀⠙⣆⠀⠀⠀⠀⠀⠀⢀⣠⡾⣋⠁⡾⣱⠋⠁⠀⠀⠀⠈⠙⣮⢷⡄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠸⡄⠘⡇⠀⠀⠀⢸⡇
+//    ⠀⠀⠈⢿⡀⠀⠀⠀⠀⠈⢳⣄⠈⠱⣦⡀⣀⡠⠖⠋⡽⠛⢁⣾⡇⡇⠀⠀⠀⠀⠀⠀⠀⢸⡏⣷⠀⠰⠦⠤⢤⣤⣀⣤⠤⠴⠖⠂⡇⠀⡇⠀⠀⢀⡾⠁
+//    ⠀⠀⠀⠘⠻⢦⣄⣀⣀⣀⣀⣈⣿⠦⠤⠿⠁⠀⠀⣼⡧⠔⢛⢿⡇⣇⠀⠀⠀⠀⠀⠀⠀⠀⡇⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡏⠀⡇⠀⣠⠟⠁⠀
+//    ⠀⠀⠀⠀⠀⠀⠀⠈⠉⠉⠉⠀⠀⠀⠀⠀⠀⠀⠀⣿⣠⠴⠋⢀⣧⡸⣦⣀⣀⣀⣀⣀⣠⣼⣇⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣠⠇⢰⠗⠋⠁⠀⠀⠀
+//    ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠘⣇⡀⠀⠘⠙⣻⡶⠭⠭⠭⠽⠟⠒⠛⠛⠉⠉⠑⠒⠒⠒⠒⠒⠒⠒⠋⠉⠙⠒⠉⠀⠀⠀⠀⠀⠀
+//    ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠉⠉⠉⠉⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+
+// Author:Viola Zsolt (atrex66@gmail.com)
+// Date: 2025
+// Description: flexi-ninja driver for W5100S-EVB-PICO and rpi4 with pico
 // License: MIT
+// Description: This code is a driver for the W5100S-EVB-PICO board (ethernet udp) and pico (spi and rpi4).
+// It also includes a serial terminal interface for configuration and debugging.
+// The code is designed to run on the Raspberry Pi Pico and uses the Pico SDK for hardware access.
+// The code is using DMA for SPI (burst) communication with the W5100S chip, which allows for high-speed data transfer.
+// The code works with normal pico + W5500-lite module (cmake -DWIZCHIP_TYPE=W5500 ..)
+// The code works with normal pico + raspberry Pi4 (spi communication)
+// The code uses the Wiznet W5100S library for network communication (for W5100S-EVB-PICO, and W5500-Lite).
+// The code includes functions for initializing the hardware, handling network communication, and processing commands from the serial terminal.
+// The code is designed to be modular and extensible, allowing for easy addition of new features and functionality.
+// The code is also designed to be efficient and responsive, with low latency and high throughput.
+// The code supports pulse width settings for the step-generators trough HAL pin.
+// The code can make 1Mhz step pulse frequency with 1mS servo-thread (1024 steps/servo-thread).
+// The code supports PWM generation up to 1Mhz (7bit resolution),with a minimum frequency 1907Hz (16bit resolution)
+// Note: checksum algorithm is used to ensure data integrity, and the code includes error handling for network communication. (timeout + jumpcode checksum)
+// Note: The code is disables the terminal when the HAL driver connected and LinuxCNC running and enables when not running.
 
 
 // -------------------------------------------
@@ -23,7 +75,7 @@ transmission_pico_pc_t *tx_buffer;
 
 // ==================== I/O buffers ====================
 volatile uint32_t input_buffer[4];      // Input register mirror for diagnostics / terminal
-const uint8_t input_pins[] = in_pins;
+const GpioPin input_pins[] = INPUT_PINS;
 const uint8_t output_pins[] = out_pins;
 // =====================================================
 
@@ -36,8 +88,7 @@ dma_channel_config dma_channel_config_tx;
 dma_channel_config dma_channel_config_rx;
 
 #if stepgens > 0
-uint32_t step_pin[stepgens] = stepgen_steps;
-uint32_t dir_pin[stepgens] = stepgen_dirs;
+const StepgenPin stepgen_config[] = STEPGEN_CONFIG;
 uint32_t total_steps[stepgens] = {0,};
 
     #if use_timer_interrupt == 1
@@ -85,8 +136,7 @@ uint8_t checksum_index_in = 1;
 
 #if use_pwm == 1
 uint32_t pwm_freq_buffer[pwm_count];
-const uint8_t pwm_pins[pwm_count] = pwm_pin;
-const uint8_t pwm_inverts[pwm_count] = pwm_invert;
+const PwmPin pwm_pins[pwm_count] = PWM_PINS;
 uint32_t old_pwm_frequency[pwm_count];
 #endif
 
@@ -94,14 +144,11 @@ PIO_def_t stepgen_pio[stepgens];
 
 #if encoders > 0
 
-    uint8_t encoder_base[encoders] = enc_pins;
+    const EncoderPin encoder_config[] = ENCODER_CONFIG;
+    const uint8_t encoder_count = sizeof(encoder_config) / sizeof(encoder_config[0]);
     uint32_t encoder[encoders] = {0,};
-    // volatile int32_t encoder_latched[encoders] = {0, };
     volatile uint8_t index_reset_flags = 0;
 
-    static uint8_t encoder_indexes[encoders] = enc_index_pins;
-    static uint8_t indexes = sizeof(encoder_indexes);
-    static uint8_t enc_index_lvl[encoders] = enc_index_active_level;
     static uint8_t enc_index_enabled[encoders] = {0,};
     PIO_def_t encoder_pio[encoders];
 
@@ -147,7 +194,7 @@ static inline void __time_critical_func(apply_stepgen_commands)(const uint32_t *
     for (int i = 0; i < stepgens; i++) {
         uint32_t command_word = step_commands[i];
         if (command_word != 0){
-            gpio_put(dir_pin[i], (command_word >> 31));
+            gpio_put(stepgen_config[i].dir_pin, (command_word >> 31));
             pio_sm_put_blocking(stepgen_pio[i].pio, stepgen_pio[i].sm, command_word & 0x7fffffff);
         }
     }
@@ -238,11 +285,11 @@ void core1_entry() {
 
     // initialize encoder index pins
     #if encoders > 0
-        for (int i=0;i<indexes;i++){
-            if (encoder_indexes[i]!=PIN_NULL){
-                gpio_init(encoder_indexes[i]);
-                gpio_set_dir(encoder_indexes[i], false);
-                printf("Encoder index %d pin %d initialized\n", i, encoder_indexes[i]);
+        for (int i=0;i<encoder_count;i++){
+            if (encoder_config[i].index_pin!=PIN_NULL){
+                gpio_init(encoder_config[i].index_pin);
+                gpio_set_dir(encoder_config[i].index_pin, false);
+                printf("Encoder index %d pin %d initialized\n", i, encoder_config[i].index_pin);
             }
         }
     #endif
@@ -289,26 +336,26 @@ void core1_entry() {
             connected = 1;
             // enable disable encoder index interrupts based on the enc_control pins
             #if encoders > 0
-                if (indexes > 0){
-                    for (int i=0;i<indexes;i++){
-                        if (encoder_indexes[i]!=PIN_NULL){
+                if (encoder_count > 0){
+                    for (int i=0;i<encoder_count;i++){
+                        if (encoder_config[i].index_pin!=PIN_NULL){
                             if (((rx_buffer->enc_control >> i) & 0x01u) == 1u){
                                 if (enc_index_enabled[i] == 0){
-                                    if (enc_index_lvl[i] == high){
-                                        gpio_set_irq_enabled_with_callback(encoder_indexes[i], GPIO_IRQ_EDGE_RISE, true, &gpio_callback);
+                                    if (encoder_config[i].index_active_level == high){
+                                        gpio_set_irq_enabled_with_callback(encoder_config[i].index_pin, GPIO_IRQ_EDGE_RISE, true, &gpio_callback);
                                     }
                                     else{
-                                        gpio_set_irq_enabled_with_callback(encoder_indexes[i], GPIO_IRQ_EDGE_FALL, true, &gpio_callback);
+                                        gpio_set_irq_enabled_with_callback(encoder_config[i].index_pin, GPIO_IRQ_EDGE_FALL, true, &gpio_callback);
                                     }
                                     enc_index_enabled[i] = 1;
                                 }
                             }else {
                                 if (enc_index_enabled[i] == 1){
-                                    if (enc_index_lvl[i] == high){
-                                        gpio_set_irq_enabled_with_callback(encoder_indexes[i], GPIO_IRQ_EDGE_RISE, false, &gpio_callback);
+                                    if (encoder_config[i].index_active_level == high){
+                                        gpio_set_irq_enabled_with_callback(encoder_config[i].index_pin, GPIO_IRQ_EDGE_RISE, false, &gpio_callback);
                                     }
                                     else{
-                                        gpio_set_irq_enabled_with_callback(encoder_indexes[i], GPIO_IRQ_EDGE_FALL, false, &gpio_callback);
+                                        gpio_set_irq_enabled_with_callback(encoder_config[i].index_pin, GPIO_IRQ_EDGE_FALL, false, &gpio_callback);
                                     }
                                     enc_index_enabled[i] = 0;
                                 }
@@ -341,7 +388,7 @@ void core1_entry() {
             for (int i=0; i<pwm_count; i++){
                 if (old_pwm_frequency[i] != pwm_freq_buffer[i]){
                     old_pwm_frequency[i] = pwm_freq_buffer[i];
-                    ninja_pwm_set_frequency(pwm_pins[i], rx_buffer->pwm_frequency[i]);
+                    ninja_pwm_set_frequency(pwm_pins[i].gpio, rx_buffer->pwm_frequency[i]);
                 }
             }
             #endif
@@ -466,18 +513,16 @@ int main() {
     printf("\n");
     #endif
 
-    #ifdef in_pins
-    printf("Input GPIO: ");
-    int8_t pullups[sizeof(input_pins)] = in_pullup;
-    for (int i = 0; i < sizeof(input_pins); i++) {
-        gpio_init(input_pins[i]);
-        gpio_set_dir(input_pins[i], GPIO_IN);
-        printf("%d ", input_pins[i]);
-        if (pullups[i] == -1){
-            // buggy, its an rp2040 and rp2350 bug, the internal pulldown not enough to pull down the pin its latching need and external ~8Kohm resistor if you really need to pull down the pin.
-            gpio_set_pulls(input_pins[i], false, true);
-        } else if (pullups[i] == 1){
-            gpio_set_pulls(input_pins[i], true, false);
+    #ifdef INPUT_PINS
+    printf("Input Pins: ");
+    for (size_t i = 0; i < sizeof(input_pins) / sizeof(input_pins[0]); i++) {
+        gpio_init(input_pins[i].gpio);
+        gpio_set_dir(input_pins[i].gpio, GPIO_IN);
+        printf("%s ", input_pins[i].name);
+        if (input_pins[i].pullup == -1){
+            gpio_set_pulls(input_pins[i].gpio, false, true);
+        } else if (input_pins[i].pullup == 1){
+            gpio_set_pulls(input_pins[i].gpio, true, false);
         }
     }
     printf("\n");
@@ -486,12 +531,12 @@ int main() {
     #if use_pwm == 1
         printf("Pwm GPIO:");
         for (int i=0;i<pwm_count;i++){
-            ninja_pwm_init(pwm_pins[i]);
-            if (pwm_inverts[i] == 1){
-                gpio_set_outover(pwm_pins[i], GPIO_OVERRIDE_INVERT); // Invert the PWM signal
+            ninja_pwm_init(pwm_pins[i].gpio);
+            if (pwm_pins[i].invert){
+                gpio_set_outover(pwm_pins[i].gpio, GPIO_OVERRIDE_INVERT); // Invert the PWM signal
                 printf("_");
             }
-            printf("%d ", pwm_pins[i]);
+            printf("%s ", pwm_pins[i].name);
         }
         printf("\n");
     #endif
@@ -499,8 +544,6 @@ int main() {
     #if stepgens > 0
 
     uint32_t offset[2] = {0, };
-    uint8_t step_inverts[] = step_invert;
-
     offset[0] = pio_add_program_at_offset(pio0, &freq_generator_program, 0);
 
     uint32_t sm = 0;
@@ -512,15 +555,15 @@ int main() {
         }
         pio = stepgen_pio[i].pio;
         sm = stepgen_pio[i].sm;
-        pio_gpio_init(pio, step_pin[i]);
-        gpio_init(dir_pin[i]);
-        if (step_inverts[i] == 1){
-           gpio_set_outover(step_pin[i], GPIO_OVERRIDE_INVERT);
+        pio_gpio_init(pio, stepgen_config[i].step_pin);
+        gpio_init(stepgen_config[i].dir_pin);
+        if (stepgen_config[i].invert){
+           gpio_set_outover(stepgen_config[i].step_pin, GPIO_OVERRIDE_INVERT);
         }
-        gpio_set_dir(step_pin[i], GPIO_OUT);
-        pio_sm_set_consecutive_pindirs(pio, sm, step_pin[i], 1, true);
+        gpio_set_dir(stepgen_config[i].step_pin, GPIO_OUT);
+        pio_sm_set_consecutive_pindirs(pio, sm, stepgen_config[i].step_pin, 1, true);
         pio_sm_config c = freq_generator_program_get_default_config(offset[o]);
-        sm_config_set_set_pins(&c, step_pin[i], 1);
+        sm_config_set_set_pins(&c, stepgen_config[i].step_pin, 1);
         pio_sm_init(pio, sm, offset[o], &c);
         pio_sm_set_enabled(pio, sm, true);
         printf("stepgen%d. pio:%d sm:%d init done...\n", i, stepgen_pio[i].pio_blk, sm);
@@ -533,12 +576,12 @@ int main() {
                 uint8_t encoder_program_len;
 
                 printf("Encoder %d GPIO init\n", i);
-                gpio_init(encoder_base[i]);
-                gpio_init(encoder_base[i]+1);
-                gpio_set_dir(encoder_base[i], GPIO_IN);
-                gpio_set_dir(encoder_base[i]+1, GPIO_IN);
-                gpio_pull_up(encoder_base[i]);
-                gpio_pull_up(encoder_base[i]+1);
+                gpio_init(encoder_config[i].base_pin);
+                gpio_init(encoder_config[i].base_pin+1);
+                gpio_set_dir(encoder_config[i].base_pin, GPIO_IN);
+                gpio_set_dir(encoder_config[i].base_pin+1, GPIO_IN);
+                gpio_pull_up(encoder_config[i].base_pin);
+                gpio_pull_up(encoder_config[i].base_pin+1);
                 //tx_buffer->encoder_latched[i] = 0;
                 tx_buffer->encoder_velocity[i] = 0;
                 #if encoder_pio_version == ENCODER_PIO_SUBSTEP
@@ -553,7 +596,7 @@ int main() {
                 printf("Encoder %d pre init\n", i);
                 #if encoder_pio_version == ENCODER_PIO_SUBSTEP
                 // Initialize substep encoder
-                substep_init_state(encoder_pio[i].pio, encoder_pio[i].sm, encoder_base[i], &substep_state[i]);
+                substep_init_state(encoder_pio[i].pio, encoder_pio[i].sm, encoder_config[i].base_pin, &substep_state[i]);
                 // Default (3 samples) is too aggressive for low RPM and can
                 // force speed to zero between sparse transitions.
                 substep_state[i].idle_stop_samples = ENCODER_IDLE_STOP_SAMPLES;
@@ -565,23 +608,23 @@ int main() {
                 if (pio_can_add_program_at_offset(encoder_pio[i].pio, &quadrature_encoder_program, 0)) {
                     pio_add_program_at_offset(encoder_pio[i].pio, &quadrature_encoder_program, 0);
                 }
-                quadrature_encoder_program_init(encoder_pio[i].pio, encoder_pio[i].sm, encoder_base[i], 0);
+                quadrature_encoder_program_init(encoder_pio[i].pio, encoder_pio[i].sm, encoder_config[i].base_pin, 0);
                 encoder[i] = quadrature_encoder_get_count(encoder_pio[i].pio, encoder_pio[i].sm);
                 printf("encoder%d. pio:%d sm:%d init done (legacy)...\n", i, encoder_pio[i].pio_blk, encoder_pio[i].sm);
                 #endif
             }
         #else
             for (int i = 0; i < encoders; i++) {
-                gpio_init(encoder_base[i]);
-                gpio_init(encoder_base[i]+1);
-                gpio_set_dir(encoder_base[i], GPIO_IN);
-                gpio_set_dir(encoder_base[i]+1, GPIO_IN);
-                gpio_pull_up(encoder_base[i]);
-                gpio_pull_up(encoder_base[i]+1);
+                gpio_init(encoder_config[i].base_pin);
+                gpio_init(encoder_config[i].base_pin+1);
+                gpio_set_dir(encoder_config[i].base_pin, GPIO_IN);
+                gpio_set_dir(encoder_config[i].base_pin+1, GPIO_IN);
+                gpio_pull_up(encoder_config[i].base_pin);
+                gpio_pull_up(encoder_config[i].base_pin+1);
             }
             pio_add_program(pio1, &step_counter_program);
             for (int i = 0; i < encoders; i++) {
-                step_counter_program_init(pio1, i, encoder_base[i], 0);
+                step_counter_program_init(pio1, i, encoder_config[i].base_pin, 0);
                 printf("step counter %d init done...\n", i);
             }
         #endif
@@ -718,8 +761,8 @@ void handle_data(){
     last_packet_time = get_absolute_time();
 
     if (rx_buffer->packet_id != rx_counter ) {
-        printf("packet loss: %d != %d  syncronizing.... \n", rx_buffer->packet_id, rx_counter);
-        // try to syncronize packet counter
+        printf("packet loss: %d != %d  syncronising.... \n", rx_buffer->packet_id, rx_counter);
+        // try to syncronise packet counter
         rx_counter = rx_buffer->packet_id;
     }
     if (!rx_checksum_ok(rx_buffer)) {
@@ -745,7 +788,7 @@ void handle_data(){
         // update pwm
         for (int i=0;i<pwm_count;i++){
             pwm_freq_buffer[i] = rx_buffer->pwm_frequency[i];
-            ninja_pwm_set_duty(pwm_pins[i], (uint16_t)rx_buffer->pwm_duty[i]);
+            ninja_pwm_set_duty(pwm_pins[i].gpio, (uint16_t)rx_buffer->pwm_duty[i]);
         }
     }
 #else
@@ -835,18 +878,18 @@ void printbuf(uint8_t *buf, size_t len) {
 
 #if encoders > 0
 void __not_in_flash_func(gpio_callback)(uint gpio, uint32_t events) {
-    for (int i=0;i<indexes;i++){
-        if (gpio == encoder_indexes[i]) {
+    for (int i=0;i<encoder_count;i++){
+        if (gpio == encoder_config[i].index_pin) {
             if (events & (GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL)) {
                 // Reset the selected encoder exactly on the index edge.
                 reset_encoder_counter((uint8_t)i);
                 index_reset_flags |= (uint8_t)(1u << i);
 
                 if (enc_index_enabled[i] == 1) {
-                    if (enc_index_lvl[i] == high){
-                        gpio_set_irq_enabled_with_callback(encoder_indexes[i], GPIO_IRQ_EDGE_RISE, false, &gpio_callback);
+                    if (encoder_config[i].index_active_level == high){
+                        gpio_set_irq_enabled_with_callback(encoder_config[i].index_pin, GPIO_IRQ_EDGE_RISE, false, &gpio_callback);
                     } else {
-                        gpio_set_irq_enabled_with_callback(encoder_indexes[i], GPIO_IRQ_EDGE_FALL, false, &gpio_callback);
+                        gpio_set_irq_enabled_with_callback(encoder_config[i].index_pin, GPIO_IRQ_EDGE_FALL, false, &gpio_callback);
                     }
                     enc_index_enabled[i] = 0;
                 }
@@ -1113,4 +1156,3 @@ static void spi_write_burst(uint8_t *pBuf, uint16_t len)
     dma_start_channel_mask((1u << dma_tx) | (1u << dma_rx));
     dma_channel_wait_for_finish_blocking(dma_rx);
 }
-

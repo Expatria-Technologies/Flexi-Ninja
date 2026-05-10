@@ -16,32 +16,115 @@
     // timeout for detecting disconnection from linuxcnc
     #define DEFAULT_TIMEOUT 1000000
 
+    typedef struct {
+        uint8_t gpio;
+        const char name[16];
+        int8_t pullup;
+    } GpioPin;
+
+    typedef struct {
+        uint8_t gpio;
+        const char name[16];
+        int8_t invert;
+    } PwmPin;
+
+    typedef struct {
+        uint8_t ex_num;
+        const char name[16];
+    } ExpanderPin;
+
+    typedef struct {
+        uint8_t base_pin;
+        uint8_t index_pin;
+        uint8_t index_active_level;
+    } EncoderPin;
+
+    typedef struct {
+        uint8_t step_pin;
+        uint8_t dir_pin;
+        uint8_t invert;
+    } StepgenPin;
+
 #ifdef BOARD_FLEXI_2350
 
     // All GPIO form 0-15 and 22-31 are usable
     #define stepgens 6
-    #define stepgen_steps {GP12, GP14, GP16, GP18, GP20, GP22}
-    #define stepgen_dirs {GP13, GP15, GP17, GP19, GP21, GP23}
-    #define step_invert {0, 0, 0, 0, 0} // step pin invert for each stepgen (0 = not inverted, 1 = inverted)
+    // Step, dir, step invert
+    #define STEPGEN_CONFIG { \
+        {GP12, GP13, 0}, \
+        {GP14, GP15, 0}, \
+        {GP16, GP17, 0}, \
+        {GP18, GP19, 0}, \
+        {GP20, GP21, 0}, \
+        {GP22, GP23, 0}, \
+    }
     
     #define encoders 2
-    #define enc_pins {GP09, GP45} // uses 2 sequential pins, only need to set the first pin. Encoder 1 on GPIO 9, 10,. Encoder 2 on GPIO 45, 46.
-    #define enc_index_pins {GP11, GP47}  // Encoder index pins. Encoder 1 on GPIO 11, encoder 2 on GPIO 47
-    #define enc_index_active_level {high, high}
+    // Base GPIO (2 pins for encoder dir, only first needed here), index GPIO, index active level
+    #define ENCODER_CONFIG { \
+        {GP09, GP11, high}, \
+        {GP45, GP47, high}, \
+    }
 
-    #define in_pins {GP24, GP27, GP30, GP31, GP32, GP34, GP35, GP36, GP37, GP38, GP39} // Input GPIO on RP2350. HALT, HOLD, CYCLE_START, MCU_IRQ (TODO, Motor alarm?), DOOR, B_LIMIT, A_LIMIT, Z_LIMIT, Y_LIMIT, X_LIMIT, PROBE
-    #define in_pullup {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
+    // GPIO, name, pullup
+    #define INPUT_PINS { \
+        {GP24, "HALT", 1}, \
+        {GP27, "FEED_HOLD", 1}, \
+        {GP30, "CYCLE_START", 1}, \
+        {GP31, "MCU_IRQ", 1}, \
+        {GP32, "DOOR", 1}, \
+        {GP34, "B_LIM", 1}, \
+        {GP35, "A_LIM", 1}, \
+        {GP36, "Z_LIM", 1}, \
+        {GP37, "Y_LIM", 1}, \
+        {GP38, "X_LIM", 1}, \
+        {GP39, "PROBE_IRQ", 1}, \
+    }
 
     #define out_pins {PIN_NULL}
 
     // if you want to use the module with pwm output, set this to 1
     #define use_pwm 1 // use of pwm output
     #define pwm_count 1
-    #define pwm_pin {GP26} // PWM GPIO for the module (GPIO 13, GPIO 14)
-    #define pwm_invert {0} // Invert the PWM signal (1 = inverted, 0 = not inverted)
+    // GPIO, name, invert
+    #define PWM_PINS {{GP26, "SPINDLE_PWM", 0}}
     #define default_pwm_frequency 5000 // default pwm frequency in Hz if not specified in the HAL configuration
     #define default_pwm_maxscale 4096 // default pwm max scale if not specified in the HAL configuration
-    #define default_pwm_min_limit 0 // default pwm min limit if not specified in the HAL configuration
+    #define default_pwm_min_limit 0 // default pwm min limit not specified in the HAL configuration
+
+    // Ex GPIO, name
+    #define EX_INPUT_PINS { \
+        {EX5,  "X_ALM"}, \
+        {EX6,  "Y_ALM"}, \
+        {EX7,  "Z_ALM"}, \
+        {EX8,  "M3_ALM"}, \
+        {EX9,  "M4_ALM"}, \
+        {EX10, "M5_ALM"}, \
+        {EX3,  "TOOL"}, \
+        {EX4,  "PROBE"}, \
+    }
+
+    // Ex GPIO, name
+    #define EX_OUTPUT_PINS { \
+        {EX29, "X_EN"}, \
+        {EX28, "Y_EN"}, \
+        {EX27, "Z_EN"}, \
+        {EX26, "M3_EN"}, \
+        {EX25, "M4_EN"}, \
+        {EX24, "M5_EN"}, \
+        {EX13, "MIST"}, \
+        {EX14, "COOL"}, \
+        {EX23, "AUXOUT_0"}, \
+        {EX22, "AUXOUT_1"}, \
+        {EX21, "AUXOUT_2"}, \
+        {EX20, "AUXOUT_3"}, \
+        {EX19, "AUXOUT_4"}, \
+        {EX18, "AUXOUT_5"}, \
+        {EX17, "AUXOUT_6"}, \
+        {EX16, "AUXOUT_7"}, \
+        {EX11, "SPINDLE_ENABLE"}, \
+        {EX12, "SPINDLE_DIR"}, \
+    }
 
 #endif // BOARD_FLEXI_2350
 
