@@ -47,8 +47,6 @@
 
 #endif // BOARD_FLEXI_2350
 
-    #define raspberry_pi_spi 1 // if you want to use the stepper-ninja with Raspberry Pi SPI interface, set this to 1 (need a normal pico)
-
     // used gpio for SPI on the RPI: 8, 9, 10, 11
     // used gpio for SPI on the PICO: 40, 41, 42, 43
     // available GPIO left side:  2,3,4,17,27,33,0,5,6,13,19,26

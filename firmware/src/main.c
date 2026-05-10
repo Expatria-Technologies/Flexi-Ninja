@@ -439,7 +439,7 @@ int main() {
 //        }
 //    }
     
-    #if raspberry_pi_spi == 0
+    #ifndef RASPBERRY_PI_SPI
 
         //clock_configure(clk_peri,
         //                0,
@@ -459,7 +459,7 @@ int main() {
     // load network config from the flash
     load_configuration();
 
-    #if raspberry_pi_spi == 0
+    #ifndef RASPBERRY_PI_SPI
         #if _WIZCHIP_==W5100S
             #pragma message "W5100S init"
             w5100s_init();
@@ -1000,7 +1000,7 @@ void __not_in_flash_func(handle_udp)() {
             save_config_to_flash();
         }
         if (!gpio_get(GPIO_INT)){
-            #if raspberry_pi_spi == 0
+            #ifndef RASPBERRY_PI_SPI
                 setSn_IR(0, Sn_IR_RECV);
                 int len = _recvfrom(0, (uint8_t *)rx_buffer, rx_size, src_ip, &src_port);
             #else 
@@ -1012,7 +1012,7 @@ void __not_in_flash_func(handle_udp)() {
             #endif
             if (len == rx_size) {
                 handle_data();
-                #if raspberry_pi_spi == 0
+                #ifndef RASPBERRY_PI_SPI
                     if (!checksum_error){
                         _sendto(0, (uint8_t *)tx_buffer, tx_size, src_ip, src_port);
                     }

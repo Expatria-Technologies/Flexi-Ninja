@@ -5,11 +5,9 @@
     // ** if you not know exactly what you are doing, it can break the module          **
     // **********************************************************************************
 
-    #if raspberry_pi_spi == 1
+    #ifdef RASPBERRY_PI_SPI
         #pragma message("Build for Raspberry PI SPI communication!")
     #endif
-
-
 
     #define use_stepcounter 0 // Use step counter for the stepgen
     #define debug_mode 0   // only used in Raspberry PI communications
