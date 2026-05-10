@@ -73,15 +73,11 @@ wiz_PhyConf *phy_conf;
 transmission_pc_pico_t *rx_buffer;
 transmission_pico_pc_t *tx_buffer;
 
-// ==================== BREAKOUT BOARD: I/O buffers ====================
+// ==================== I/O buffers ====================
 volatile uint32_t input_buffer[4];      // Input register mirror for diagnostics / terminal
-#if breakout_board > 0
-    volatile uint32_t output_buffer;    // Breakout board output register mirror
-#else
-    const uint8_t input_pins[] = in_pins;
-    const uint8_t output_pins[] = out_pins; // Example output pins
-#endif
-// =======================================================================
+const uint8_t input_pins[] = in_pins;
+const uint8_t output_pins[] = out_pins;
+// =====================================================
 
 uint8_t first_send = 1;
 volatile bool first_data = true;
@@ -303,12 +299,6 @@ void core1_entry() {
         }
     #endif
 
-    // ==================== BREAKOUT BOARD: Hardware setup ====================
-    #if breakout_board > 0
-    breakout_board_setup(); // Initialize SPI I/O expander, set pin directions
-    #endif
-    // =======================================================================
-
     while(1){
         gpio_put(LED_GPIO, !timeout_error);
         time_diff = (uint32_t)absolute_time_diff_us(last_packet_time, get_absolute_time());
@@ -327,12 +317,6 @@ void core1_entry() {
     #endif
                     }
 #endif
-                // ==================== BREAKOUT BOARD: Disconnected state handler ====================
-                #if breakout_board > 0
-                    breakout_board_disconnected_update(); // Safe-state all outputs on loss of connection
-                #endif
-                // ====================================================================================
-
                 rx_counter = 0;
                 timeout_error = 1;
                 checksum_index = 1;
@@ -347,11 +331,7 @@ void core1_entry() {
                         }
                     }
                 #endif
-                // ==================== BREAKOUT BOARD: Clear output buffer on disconnect ====================
-                #if breakout_board > 0
-                    output_buffer = 0; // Zero all outputs when LinuxCNC disconnects
-                #endif
-                // =========================================================================================
+
             }
         // terminal handling only when not connected to the linuxcnc
          handle_serial_input();
@@ -408,12 +388,6 @@ void core1_entry() {
                 }
             }
             #endif
-
-            // ==================== BREAKOUT BOARD: Connected periodic update ====================
-            #if breakout_board > 0
-            breakout_board_connected_update(); // Poll / refresh I/O expander while LinuxCNC is running
-            #endif
-            // ===================================================================================
 
             #if use_pwm == 1
             for (int i=0; i<pwm_count; i++){
@@ -873,29 +847,23 @@ void handle_data(){
         restore_interrupts(irq_state);
     #endif
 
-    // ==================== BREAKOUT BOARD: Per-packet I/O handling ====================
-    #if breakout_board > 0
-        breakout_board_handle_data(); // Read inputs / write outputs via I/O expander
-    #else
-        // --- Standard GPIO path (no breakout board) ---
-        tx_buffer->inputs[0] = gpio_get_all64() & 0xFFFFFFFF; // Read all GPIO inputs
-        tx_buffer->inputs[1] = gpio_get_all64() >> 32;
-        input_buffer[0] = tx_buffer->inputs[0];
-        input_buffer[1] = tx_buffer->inputs[1];
-        input_buffer[2] = 0;
-        input_buffer[3] = 0;
-        if (sizeof(output_pins)>0){
-            //set output pins
-            for (uint8_t i = 0; i < sizeof(output_pins); i++) {
-                if (output_pins[i] < 32){
-                    gpio_put(output_pins[i], (rx_buffer->outputs[0] >> i) & 1);
-                } else {
-                    gpio_put(output_pins[i], (rx_buffer->outputs[1] >> (i & 31)) & 1);
-                }
+    // --- Standard GPIO path ---
+    tx_buffer->inputs[0] = gpio_get_all64() & 0xFFFFFFFF; // Read all GPIO inputs
+    tx_buffer->inputs[1] = gpio_get_all64() >> 32;
+    input_buffer[0] = tx_buffer->inputs[0];
+    input_buffer[1] = tx_buffer->inputs[1];
+    input_buffer[2] = 0;
+    input_buffer[3] = 0;
+    if (sizeof(output_pins)>0){
+        //set output pins
+        for (uint8_t i = 0; i < sizeof(output_pins); i++) {
+            if (output_pins[i] < 32){
+                gpio_put(output_pins[i], (rx_buffer->outputs[0] >> i) & 1);
+            } else {
+                gpio_put(output_pins[i], (rx_buffer->outputs[1] >> (i & 31)) & 1);
             }
         }
-    #endif
-    // ===================================================================================
+    }
 
     tx_buffer->step_ring_fill = 0;
     tx_buffer->step_ring_status = 0;

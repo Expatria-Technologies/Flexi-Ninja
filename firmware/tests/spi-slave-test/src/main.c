@@ -11,12 +11,12 @@
 #define GPIO_SCK        42
 #define GPIO_MOSI       40
 #define GPIO_INT        8
-#define LED_GPIO        7
+#define DEBUG_GPIO      14
 #define TRANSFER_SIZE   32
 
 // Debug GPIOs for logic analyzer
-#define DBG_PREFILL     2
-#define DBG_EXCHANGE    3
+#define DBG_PREFILL     12
+#define DBG_EXCHANGE    13
 
 static uint8_t tx_pattern[TRANSFER_SIZE];
 static uint8_t rx_buffer[TRANSFER_SIZE];
@@ -61,6 +61,19 @@ int main()
     sleep_ms(2000);
     printf("SPI Slave Test (RP2350)\n");
 
+   /*
+    gpio_init(GPIO_INT);
+    gpio_set_dir(GPIO_INT, GPIO_OUT);
+    gpio_put(GPIO_INT, 1);
+    sleep_ms(50);
+    gpio_put(GPIO_INT, 0);
+    sleep_ms(50);
+    gpio_put(GPIO_INT, 1);
+    sleep_ms(50);
+    gpio_put(GPIO_INT, 0);
+    sleep_ms(100);
+   */
+
     gpio_init(DBG_PREFILL);
     gpio_set_dir(DBG_PREFILL, GPIO_OUT);
     gpio_init(DBG_EXCHANGE);
@@ -70,20 +83,8 @@ int main()
     gpio_set_dir(GPIO_INT, GPIO_IN);
     gpio_pull_up(GPIO_INT);
 
-    gpio_init(LED_GPIO);
-    gpio_set_dir(LED_GPIO, GPIO_OUT);
-
-
-    gpio_init(GPIO_MOSI);
-    gpio_set_dir(GPIO_MOSI, GPIO_OUT);
-    gpio_put(GPIO_MOSI, 1);
-    sleep_ms(50);
-    gpio_put(GPIO_MOSI, 0);
-    sleep_ms(50);
-    gpio_put(GPIO_MOSI, 1);
-    sleep_ms(50);
-    gpio_put(GPIO_MOSI, 0);
-    sleep_ms(100);
+    gpio_init(DEBUG_GPIO);
+    gpio_set_dir(DEBUG_GPIO, GPIO_OUT);
 
     prepare_pattern(tx_pattern, TRANSFER_SIZE);
     printf("TX pattern: ");
@@ -115,7 +116,7 @@ int main()
 
     while (1) {
         gpio_put(DBG_PREFILL, 1);
-        gpio_put(LED_GPIO, 1);
+        gpio_put(DEBUG_GPIO, 1);
 
         uint16_t n = prefill_fifo(tx_pattern, TRANSFER_SIZE);
 
@@ -133,7 +134,7 @@ int main()
             printf("%02x ", rx_buffer[i]);
         printf("\n");
 
-        gpio_put(LED_GPIO, 0);
+        gpio_put(DEBUG_GPIO, 0);
 
         sleep_us(10);
     }

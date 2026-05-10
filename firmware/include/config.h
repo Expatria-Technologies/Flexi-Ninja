@@ -16,14 +16,7 @@
     // timeout for detecting disconnection from linuxcnc
     #define DEFAULT_TIMEOUT 1000000
 
-    // switch off this option (breakout_board 0) to use custom configuration
-    #define breakout_board 0 // 1 = stepper-ninia v1.0 breakout board  
-                             // 2 = io-ninja IO breakout board (96 input, 32 output using 8 MCP23017)
-                             // 3 = analog-ninja breakout board (6x bipolar analog output using 6 MCP4725 and 6x high speed encoder counter) !!!! not implemented yet
-                             // 100 = breakoutboard_100 (4 stepgen, 2 encoder, 32 input, 16 output using MCP23017)
-                             // 0 = no breakout board, use custom pin configuration
-
-#if breakout_board < 1 
+#ifdef BOARD_FLEXI_2350
 
     #define io_expanders 0 // how many IO expander you connected to the breakout board (16 Input + 8 output each max 3 io_expanders)
    // all pin alias is defined in the internals.h if you want to use instead of using GPIO numbers
@@ -34,12 +27,12 @@
     #define step_invert {0, 0, 0, 0, 0} // step pin invert for each stepgen (0 = not inverted, 1 = inverted)
     
     #define encoders 2
-    #define enc_pins {GP09, GP45} // uses 2 sequential pins, only need to set the first pin
-    #define enc_index_pins {GP11, GP47}  // pin the encoder index is connected (interrupt driven)
+    #define enc_pins {GP09, GP45} // uses 2 sequential pins, only need to set the first pin. Encoder 1 on GPIO 9, 10,. Encoder 2 on GPIO 45, 46.
+    #define enc_index_pins {GP11, GP47}  // Encoder index pins. Encoder 1 on GPIO 11, encoder 2 on GPIO 47
     #define enc_index_active_level {high, high}
 
-    #define in_pins {GP24,GP25, GP27, GP30, GP31, GP32, GP34, GP35, GP36, GP37, GP38, GP39} // Free GPIO for inputs (GPIO 22-28)
-    #define in_pullup {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
+    #define in_pins {GP24, GP27, GP30, GP31, GP32, GP34, GP35, GP36, GP37, GP38, GP39} // Input GPIO on RP2350. HALT, HOLD, CYCLE_START, MCU_IRQ (TODO, Motor alarm?), DOOR, B_LIMIT, A_LIMIT, Z_LIMIT, Y_LIMIT, X_LIMIT, PROBE
+    #define in_pullup {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
 
     #define out_pins {PIN_NULL}
 
@@ -52,7 +45,7 @@
     #define default_pwm_maxscale 4096 // default pwm max scale if not specified in the HAL configuration
     #define default_pwm_min_limit 0 // default pwm min limit if not specified in the HAL configuration
 
-#endif // breakout_board < 1
+#endif // BOARD_FLEXI_2350
 
     #define raspberry_pi_spi 1 // if you want to use the stepper-ninja with Raspberry Pi SPI interface, set this to 1 (need a normal pico)
 

@@ -1,0 +1,3 @@
+#!/bin/bash
+
+pio run -e flexi-2350_spi_test --target upload

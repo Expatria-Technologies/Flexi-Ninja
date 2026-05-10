@@ -32,7 +32,6 @@
 #include "freq_generator.pio.h"
 #include "pio_utils.h"
 #include "config.h"
-#include "breakoutboard.h"
 
 #if use_stepcounter == 0
 #include "quadrature_encoder.pio.h"
@@ -41,9 +40,6 @@
 #endif
 
 #include "hardware/i2c.h"
-#if breakout_board > 0
-#include "mcp4725.h"
-#endif 
 
 #define core1_running 1
 // Low-pass filter parameters
