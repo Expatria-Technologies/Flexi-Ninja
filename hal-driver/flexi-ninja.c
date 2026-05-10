@@ -14,35 +14,23 @@
 #include "transmission.c"
 #include "pio_settings.h"
 
-#if raspberry_pi_spi == 0
-    #include <sys/socket.h>
-    #include <netinet/in.h>
-    #include <arpa/inet.h>
-#else
-    #include "bcm2835.c"
-    #include "bcm2835rt.h"
-#endif
+#include "bcm2835.c"
+#include "bcm2835rt.h"
 
 /* name of the module */
 #ifndef MODULE_NAME
-    #define MODULE_NAME "stepgen-ninja"
+    #define MODULE_NAME "flexi-ninja"
 #endif
 
 #define module_name MODULE_NAME
 
-#if raspberry_pi_spi == 0
-    #pragma message "Ethernet version"
-    char *ip_address;
-    RTAPI_MP_STRING(ip_address, "Ip address");
-#else
-    #pragma message "SPI version"
-    #define SPI_SPEED BCM2835_SPI_CLOCK_DIVIDER_128
-    const uint8_t rpi_inputs[] = raspi_inputs;
-    const uint8_t rpi_outputs[] = raspi_outputs;
-    const uint8_t rpi_input_pullup[] = raspi_input_pullups;
-    const uint8_t rpi_inputs_no = sizeof(rpi_inputs);
-    const uint8_t rpi_outputs_no = sizeof(rpi_outputs);
-#endif
+#pragma message "SPI version"
+#define SPI_SPEED BCM2835_SPI_CLOCK_DIVIDER_128
+const uint8_t rpi_inputs[] = raspi_inputs;
+const uint8_t rpi_outputs[] = raspi_outputs;
+const uint8_t rpi_input_pullup[] = raspi_input_pullups;
+const uint8_t rpi_inputs_no = sizeof(rpi_inputs);
+const uint8_t rpi_outputs_no = sizeof(rpi_outputs);
 
 #define debug 1
 
@@ -77,17 +65,10 @@ uint32_t total_cycles;
  */
 #define offset 10000
 
-#if breakout_board == 0
 const uint8_t input_pins[] = in_pins;
 const uint8_t output_pins[] = out_pins;
 const uint8_t in_pins_no = sizeof(input_pins);
 const uint8_t out_pins_no = sizeof(output_pins);
-#endif
-
-typedef struct {
-    char ip[16];
-    int port;
-} IpPort;
 
 typedef struct {
     float y;
@@ -162,11 +143,7 @@ typedef struct {
     hal_bit_t *connected;
     hal_bit_t *io_ready_in;
     hal_bit_t *io_ready_out;
-#if raspberry_pi_spi == 0
-    IpPort *ip_address;
-    int sockfd;
-    struct sockaddr_in local_addr, remote_addr;
-#endif
+
     long long last_received_time;
     long long watchdog_timeout;
     int watchdog_expired;
@@ -205,10 +182,8 @@ static uint32_t counter = 0;
 float cycle_time_ns = 1.0f / pico_clock * 1000000000.0f;
 transmission_pc_pico_t *tx_buffer;
 transmission_pico_pc_t *rx_buffer;
-#if raspberry_pi_spi == 1
 static uint8_t spi_tx_buffer[SPI_TRANSFER_SIZE];
 static uint8_t spi_rx_buffer[SPI_TRANSFER_SIZE];
-#endif
 
 #if encoders > 0
 LowPassFilter filter[encoders];
@@ -295,56 +270,6 @@ static void module_init(void)
     #endif
 }
 
-#if raspberry_pi_spi == 0
-/*
- * init_socket - Initializes a UDP socket for the io-samurai module.
- *
- * @arg: Pointer to an io_samurai_data_t structure containing socket configuration data.
- *
- * Create the UDP socket, bind it locally, and configure the remote peer.
- * On failure the socket is closed and left in the disabled state.
- */
-static void init_socket(module_data_t *arg)
-{
-    module_data_t *d = arg;
-    uint32_t bufsize = 65535;
-
-    if ((d->sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-        rtapi_print_msg(RTAPI_MSG_ERR, module_name ".%d: socket creation failed: %s\n",
-            d->index, strerror(errno));
-        return;
-    }
-
-    d->local_addr.sin_family = AF_INET;
-    d->local_addr.sin_port = htons(d->ip_address->port);
-    d->local_addr.sin_addr.s_addr = INADDR_ANY;
-
-    rtapi_print_msg(RTAPI_MSG_INFO, module_name ".%d: binding to %s:%d\n",
-        d->index, d->ip_address->ip, d->ip_address->port);
-
-    if (bind(d->sockfd, (struct sockaddr *)&d->local_addr, sizeof(d->local_addr)) < 0) {
-        rtapi_print_msg(RTAPI_MSG_ERR, module_name ".%d: bind failed: %s\n",
-            d->index, strerror(errno));
-        close(d->sockfd);
-        d->sockfd = -1;
-        return;
-    }
-
-    int flags = fcntl(d->sockfd, F_GETFL, 0);
-    fcntl(d->sockfd, F_SETFL, flags | O_NONBLOCK);
-
-    d->remote_addr.sin_family = AF_INET;
-    d->remote_addr.sin_port = htons(d->ip_address->port);
-    if (inet_pton(AF_INET, d->ip_address->ip, &d->remote_addr.sin_addr) <= 0) {
-        rtapi_print_msg(RTAPI_MSG_ERR, module_name ".%d: invalid IP address: %s\n",
-            d->index, d->ip_address->ip);
-        close(d->sockfd);
-        d->sockfd = -1;
-    }
-    setsockopt(d->sockfd, SOL_SOCKET, SO_SNDBUF, &bufsize, sizeof(bufsize));
-    setsockopt(d->sockfd, SOL_SOCKET, SO_RCVBUF, &bufsize, sizeof(bufsize));
-}
-#else
 static void init_spi(void)
 {
     if (!bcm2835_init_rt()) {
@@ -362,7 +287,6 @@ static void init_spi(void)
     bcm2835_gpio_fsel(raspi_int_out, BCM2835_GPIO_FSEL_OUTP);
     bcm2835_gpio_set(raspi_int_out);
 }
-#endif
 
 void watchdog_process(void *arg, long period)
 {
@@ -426,21 +350,76 @@ static void printbuf(uint8_t *buf, size_t len)
 }
 #endif
 
-// ==================== BREAKOUT BOARD: HAL-side module includes ====================
-// Each board module implements bb_hal_setup_pins(), bb_hal_process_recv(),
-// and bb_hal_process_send() with common names — only one is ever compiled in.
-#if breakout_board == 1
-#include "modules/breakoutboard_hal_1.c"
-#elif breakout_board == 2
-#include "modules/breakoutboard_hal_2.c"
-#elif breakout_board == 3
-#include "modules/breakoutboard_hal_3.c"
-#elif breakout_board == 100
-#include "modules/breakoutboard_hal_100.c"
-#else
-#include "modules/breakoutboard_hal_0.c"
-#endif
-// ====================================================================================
+// ==================== I/O PIN HAL SETUP ====================
+static int bb_hal_setup_pins(module_data_t *d, int j, int comp_id,
+                             char *name, uint32_t nsize)
+{
+    int r;
+
+    for (int i = 0; i < in_pins_no; i++) {
+        memset(name, 0, nsize);
+        snprintf(name, nsize, module_name ".%d.input.gp%d", j, input_pins[i]);
+        r = hal_pin_bit_newf(HAL_OUT, &d->input[i], comp_id, name, j);
+        if (r < 0) {
+            rtapi_print_msg(RTAPI_MSG_ERR,
+                module_name ".%d: ERROR: pin connected export failed with err=%i\n", j, r);
+            return r;
+        }
+
+        memset(name, 0, nsize);
+        snprintf(name, nsize, module_name ".%d.input.gp%d-not", j, input_pins[i]);
+        r = hal_pin_bit_newf(HAL_OUT, &d->input_not[i], comp_id, name, j);
+        if (r < 0) {
+            rtapi_print_msg(RTAPI_MSG_ERR,
+                module_name ".%d: ERROR: pin connected export failed with err=%i\n", j, r);
+            return r;
+        }
+    }
+
+    for (int i = 0; i < out_pins_no; i++) {
+        memset(name, 0, nsize);
+        snprintf(name, nsize, module_name ".%d.output.gp%d", j, output_pins[i]);
+        r = hal_pin_bit_newf(HAL_IN, &d->output[i], comp_id, name, j);
+        if (r < 0) {
+            rtapi_print_msg(RTAPI_MSG_ERR,
+                module_name ".%d: ERROR: pin connected export failed with err=%i\n", j, r);
+            return r;
+        }
+        *d->output[i] = 0;
+    }
+
+    return 0;
+}
+
+static void bb_hal_process_recv(module_data_t *d)
+{
+    for (uint8_t i = 0; i < in_pins_no; i++) {
+        if (input_pins[i] < 32) {
+            *d->input[i] = (rx_buffer->inputs[0] >> (input_pins[i] & 31)) & 1;
+        } else {
+            *d->input[i] = (rx_buffer->inputs[1] >> ((input_pins[i] - 32) & 31)) & 1;
+        }
+        *d->input_not[i] = !(*d->input[i]);
+    }
+}
+
+static void bb_hal_process_send(module_data_t *d)
+{
+    uint32_t outs0 = 0;
+    uint32_t outs1 = 0;
+
+    for (uint8_t i = 0; i < out_pins_no; i++) {
+        if (i < 32) {
+            outs0 |= *d->output[i] == 1 ? 1u << i : 0;
+        } else {
+            outs1 |= *d->output[i] == 1 ? 1u << (i & 31) : 0;
+        }
+    }
+
+    tx_buffer->outputs[0] = outs0;
+    tx_buffer->outputs[1] = outs1;
+}
+// ===========================================================
 
 static int _receive(void *arg)
 {
@@ -449,20 +428,15 @@ static int _receive(void *arg)
 
 static int _send(void *arg)
 {
-    #if raspberry_pi_spi == 0
-        module_data_t *d = arg;
-        return sendto(d->sockfd, tx_buffer, tx_size, MSG_DONTROUTE | MSG_DONTWAIT, &d->remote_addr, sizeof(d->remote_addr));
-    #else
-        bcm2835_gpio_clr(raspi_int_out);
-        usleep(50);
-        memset(spi_tx_buffer, 0, sizeof(spi_tx_buffer));
-        memset(spi_rx_buffer, 0, sizeof(spi_rx_buffer));
-        memcpy(spi_tx_buffer, tx_buffer, tx_size);
-        bcm2835_spi_transfernb((char *)spi_tx_buffer, (char *)spi_rx_buffer, SPI_TRANSFER_SIZE);
-        memcpy(rx_buffer, spi_rx_buffer, rx_size);
-        bcm2835_gpio_set(raspi_int_out);
-        return rx_size;
-    #endif
+    bcm2835_gpio_clr(raspi_int_out);
+    usleep(50);
+    memset(spi_tx_buffer, 0, sizeof(spi_tx_buffer));
+    memset(spi_rx_buffer, 0, sizeof(spi_rx_buffer));
+    memcpy(spi_tx_buffer, tx_buffer, tx_size);
+    bcm2835_spi_transfernb((char *)spi_tx_buffer, (char *)spi_rx_buffer, SPI_TRANSFER_SIZE);
+    memcpy(rx_buffer, spi_rx_buffer, rx_size);
+    bcm2835_gpio_set(raspi_int_out);
+    return rx_size;
 }
 
 uint32_t test[3] = {1, 0, 0};
@@ -491,12 +465,7 @@ void udp_io_process_recv(void *arg, long period)
         return;
     }
 
-    #if raspberry_pi_spi == 1
-        int len = _receive(d);
-    #else
-        static socklen_t addrlen = sizeof(d->remote_addr);
-        int len = recvfrom(d->sockfd, rx_buffer, rx_size, 0, &d->remote_addr, &addrlen);
-    #endif
+    int len = _receive(d);
 
     if (len == rx_size) {
         if (!tx_checksum_ok(rx_buffer) && debug_mode == 0) {
@@ -584,11 +553,9 @@ void udp_io_process_recv(void *arg, long period)
                 d->enc_prev_pos[i] = *d->enc_position[i];
             }
         #endif
-        #if raspberry_pi_spi == 1
-            for (int i = 0; i < rpi_inputs_no; i++) {
-                *d->rpi_input[i] = bcm2835_gpio_lev(rpi_inputs[i]);
-            }
-        #endif
+        for (int i = 0; i < rpi_inputs_no; i++) {
+            *d->rpi_input[i] = bcm2835_gpio_lev(rpi_inputs[i]);
+        }
 
         bb_hal_process_recv(d);
     }
@@ -717,15 +684,13 @@ static void udp_io_process_send(void *arg, long period)
         tx_buffer->pio_timing = nearest(*d->pulse_width);
         #endif
 
-    #if raspberry_pi_spi == 1
-        for (int i = 0; i < rpi_outputs_no; i++) {
-            if (*d->rpi_output[i]) {
-                bcm2835_gpio_set(rpi_outputs[i]);
-            } else {
-                bcm2835_gpio_clr(rpi_outputs[i]);
-            }
+    for (int i = 0; i < rpi_outputs_no; i++) {
+        if (*d->rpi_output[i]) {
+            bcm2835_gpio_set(rpi_outputs[i]);
+        } else {
+            bcm2835_gpio_clr(rpi_outputs[i]);
         }
-    #endif
+    }
 
     bb_hal_process_send(d);
 
@@ -768,53 +733,6 @@ static void udp_io_process_send(void *arg, long period)
     }
 }
 
-static int parse_ip_port(const char *input, IpPort *output, int max_count)
-{
-    if (input == NULL || output == NULL || max_count <= 0) {
-        return -1;
-    }
-
-    char *input_copy = strdup(input);
-    if (input_copy == NULL) {
-        return -1;
-    }
-
-    char *saveptr1;
-    char *entry;
-    int count = 0;
-
-    for (entry = strtok_r(input_copy, ";", &saveptr1);
-         entry != NULL && count < max_count;
-         entry = strtok_r(NULL, ";", &saveptr1)) {
-        char *colon = strchr(entry, ':');
-
-        if (colon == NULL) {
-            rtapi_print_msg(RTAPI_MSG_ERR, module_name ": Invalid entry format: %s\n", entry);
-            continue;
-        }
-
-        *colon = '\0';
-        char *ip = entry;
-        char *port_str = colon + 1;
-
-        char *endptr;
-        long port = strtol(port_str, &endptr, 10);
-
-        if (*endptr != '\0' || port < 0 || port > 65535) {
-            rtapi_print_msg(RTAPI_MSG_ERR, module_name ": Invalid port number: %s\n", port_str);
-            continue;
-        }
-
-        snprintf(output[count].ip, sizeof(output[count].ip), "%s", ip);
-        output[count].port = (int)port;
-
-        count++;
-    }
-
-    free(input_copy);
-    return count;
-}
-
 int rtapi_app_main(void)
 {
     int r;
@@ -823,19 +741,7 @@ int rtapi_app_main(void)
 
     module_init();
 
-    #if raspberry_pi_spi == 0
-        IpPort results[MAX_CHAN];
-        instances = parse_ip_port((char *)ip_address, results, 8);
-
-        for (int i = 0; i < instances; i++) {
-            rtapi_print_msg(RTAPI_MSG_INFO, "Parsed IP: %s, Port: %d\n", results[i].ip, results[i].port);
-        }
-
-        if (instances > MAX_CHAN) {
-            rtapi_print_msg(RTAPI_MSG_ERR, module_name ": Too many channels, max %d allowed\n", MAX_CHAN);
-            return -1;
-        }
-    #endif
+    instances = 1;
 
     hal_data = hal_malloc(instances * sizeof(module_data_t));
     if (hal_data == NULL) {
@@ -864,17 +770,10 @@ int rtapi_app_main(void)
         hal_data[j].first_data = true;
         hal_data[j].error_triggered = false;
 
-        #if raspberry_pi_spi == 0
-            hal_data[j].ip_address = &results[j];
-            rtapi_print_msg(RTAPI_MSG_INFO, module_name ".%d: init_socket\n", j);
-            init_socket(&hal_data[j]);
-            rtapi_print_msg(RTAPI_MSG_INFO, module_name ".%d: init_socket ready..\n", j);
-        #else
-            rtapi_print_msg(RTAPI_MSG_INFO, module_name ".%d: init_spi\n", j);
-            init_spi();
-            rtapi_print_msg(RTAPI_MSG_INFO, module_name ".%d: init_spi ready..\n", j);
-            instances = 1;
-        #endif
+        rtapi_print_msg(RTAPI_MSG_INFO, module_name ".%d: init_spi\n", j);
+        init_spi();
+        rtapi_print_msg(RTAPI_MSG_INFO, module_name ".%d: init_spi ready..\n", j);
+        instances = 1;
 
         uint32_t nsize = sizeof(name);
         PIN_BIT(&hal_data[j].connected, HAL_IN, module_name ".%d.connected", j);
@@ -894,23 +793,21 @@ int rtapi_app_main(void)
         PIN_BIT_INIT(&hal_data[j].step_ring_underflow, HAL_OUT, 0, module_name ".%d.stepgen.ring-underflow", j);
         PIN_BIT_INIT(&hal_data[j].step_ring_overflow, HAL_OUT, 0, module_name ".%d.stepgen.ring-overflow", j);
 
-        #if raspberry_pi_spi == 1
-            for (int i = 0; i < rpi_inputs_no; i++) {
+        for (int i = 0; i < rpi_inputs_no; i++) {
 
-                bcm2835_gpio_fsel(rpi_inputs[i], BCM2835_GPIO_FSEL_INPT);
-                if (rpi_input_pullup[i]) {
-                    bcm2835_gpio_set_pud(rpi_inputs[i], BCM2835_GPIO_PUD_UP);
-                } else {
-                    bcm2835_gpio_set_pud(rpi_inputs[i], BCM2835_GPIO_PUD_DOWN);
-                }
-                PIN_BIT(&hal_data[j].rpi_input[i], HAL_OUT, module_name ".%d.rpi-input.gp%d", j, rpi_inputs[i]);
-                PIN_BIT(&hal_data[j].rpi_input_not[i], HAL_OUT, module_name ".%d.rpi-input.gp%d-not", j, rpi_inputs[i]);
+            bcm2835_gpio_fsel(rpi_inputs[i], BCM2835_GPIO_FSEL_INPT);
+            if (rpi_input_pullup[i]) {
+                bcm2835_gpio_set_pud(rpi_inputs[i], BCM2835_GPIO_PUD_UP);
+            } else {
+                bcm2835_gpio_set_pud(rpi_inputs[i], BCM2835_GPIO_PUD_DOWN);
             }
-            for (int i = 0; i < rpi_outputs_no; i++) {
-                bcm2835_gpio_fsel(rpi_outputs[i], BCM2835_GPIO_FSEL_OUTP);
-                PIN_BIT_INIT(&hal_data[j].rpi_output[i], HAL_IN, 0, module_name ".%d.rpi-output.gp%d", j, rpi_outputs[i]);
-            }
-        #endif
+            PIN_BIT(&hal_data[j].rpi_input[i], HAL_OUT, module_name ".%d.rpi-input.gp%d", j, rpi_inputs[i]);
+            PIN_BIT(&hal_data[j].rpi_input_not[i], HAL_OUT, module_name ".%d.rpi-input.gp%d-not", j, rpi_inputs[i]);
+        }
+        for (int i = 0; i < rpi_outputs_no; i++) {
+            bcm2835_gpio_fsel(rpi_outputs[i], BCM2835_GPIO_FSEL_OUTP);
+            PIN_BIT_INIT(&hal_data[j].rpi_output[i], HAL_IN, 0, module_name ".%d.rpi-output.gp%d", j, rpi_outputs[i]);
+        }
 
         r = bb_hal_setup_pins(&hal_data[j], j, comp_id, name, nsize);
         if (r < 0) {
@@ -919,7 +816,7 @@ int rtapi_app_main(void)
             return r;
         }
         /* Breakout boards with analog channels register them in board helpers. */
-        #if ANALOG_CH > 0 && breakout_board < 1
+        #if ANALOG_CH > 0
             for (int i = 0; i < ANALOG_CH; i++) {
                 PIN_BIT_INIT(&hal_data[j].analog_enable[i], HAL_IN, 0, module_name ".%d.analog.%d.enable", j, i);
                 PIN_FLOAT_INIT(&hal_data[j].analog_min[i], HAL_IN, 0.0, module_name ".%d.analog.%d.minimum", j, i);
@@ -1030,12 +927,8 @@ void rtapi_app_exit(void)
 {
     for (int i = 0; i < instances; i++) {
         rtapi_print_msg(RTAPI_MSG_INFO, module_name ".%d: Exiting component\n", i);
-        #if raspberry_pi_spi == 0
-        close(hal_data[i].sockfd);
-        #else
         bcm2835_spi_end();
         bcm2835_close();
-        #endif
     }
     hal_exit(comp_id);
 }

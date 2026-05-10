@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(stepper_ninja_hal_driver LANGUAGES C)
+project(flexi_ninja_hal_driver LANGUAGES C)
 
 find_program(LINUXCNC_MAKE_PROGRAM NAMES gmake make REQUIRED)
 
@@ -57,6 +57,7 @@ include @LINUXCNC_MODINC@
 EXTRA_CFLAGS += -I@CMAKE_CURRENT_SOURCE_DIR@
 EXTRA_CFLAGS += -I@LINUXCNC_INCLUDE_DIR@
 EXTRA_CFLAGS += -DMODULE_NAME=\"@module_name@\"
+EXTRA_CFLAGS += -DBOARD_FLEXI_2350
 
 @module_name@.o: @module_source@
 	$(ECHO) Compiling realtime $<
@@ -93,16 +94,12 @@ EXTRA_CFLAGS += -DMODULE_NAME=\"@module_name@\"
     )
 endfunction()
 
-add_linuxcnc_rt_module(stepgen-ninja stepgen-ninja.c)
-add_linuxcnc_rt_module(stepper-ninja stepper-ninja.c)
-add_linuxcnc_rt_module(plc-ninja plc-ninja.c)
-add_linuxcnc_rt_module(polygon-ninja polygon-ninja.c)
+add_linuxcnc_rt_module(flexi-ninja flexi-ninja.c)
+add_linuxcnc_rt_module(flexi-ninja-eth flexi-ninja-eth.c)
 
 add_custom_target(hal-modules)
-add_dependencies(hal-modules stepgen-ninja)
-add_dependencies(hal-modules stepper-ninja)
-add_dependencies(hal-modules plc-ninja)
-add_dependencies(hal-modules polygon-ninja)
+add_dependencies(hal-modules flexi-ninja)
+add_dependencies(hal-modules flexi-ninja-eth)
 
 message(STATUS "LinuxCNC include dir: ${LINUXCNC_INCLUDE_DIR}")
 message(STATUS "LinuxCNC modinc: ${LINUXCNC_MODINC}")

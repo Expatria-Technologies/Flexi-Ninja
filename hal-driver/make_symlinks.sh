@@ -28,13 +28,13 @@ create_link() {
     echo "Linked $link_name -> $target_rel"
 }
 
-create_link "firmware/inc/config.h" "config.h"
-create_link "firmware/inc/footer.h" "footer.h"
-create_link "firmware/inc/internals.h" "internals.h"
-create_link "firmware/inc/kbmatrix.h" "kbmatrix.h"
-create_link "firmware/modules/inc/jump_table.h" "jump_table.h"
-create_link "firmware/modules/inc/pio_settings.h" "pio_settings.h"
-create_link "firmware/modules/inc/transmission.h" "transmission.h"
-create_link "firmware/modules/transmission.c" "transmission.c"
+create_link "firmware/include/config.h" "config.h"
+create_link "firmware/include/footer.h" "footer.h"
+create_link "firmware/include/internals.h" "internals.h"
+create_link "firmware/include/kbmatrix.h" "kbmatrix.h"
+create_link "firmware/lib/modules/inc/jump_table.h" "jump_table.h"
+create_link "firmware/lib/modules/inc/pio_settings.h" "pio_settings.h"
+create_link "firmware/lib/modules/inc/transmission.h" "transmission.h"
+create_link "firmware/lib/modules/transmission.c" "transmission.c"
 
 echo "Shared symlinks are ready."

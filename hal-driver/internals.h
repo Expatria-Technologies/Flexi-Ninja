@@ -1,1 +1,1 @@
-../firmware/include/internals.h
+/media/NAS/Repositories/Personal/stepper-ninja/firmware/include/internals.h

@@ -28,13 +28,13 @@ uint8_t display_buffer[buffer_size];
 static uint8_t rotated_font_8x8[256 * 8];
 
 void sh1106_write_cmd(uint8_t cmd) {
-    uint8_t buf[2] = {0x00, cmd}; // 0x00: vezérlőbájt parancsokhoz
+    uint8_t buf[2] = {0x00, cmd}; // 0x00: control byte for commands
     i2c_write_blocking(i2c1, SH1106_ADDR, buf, 2, false);
 }
 
 void sh1106_write_data(uint8_t *data, size_t len) {
     uint8_t buf[1 + len];
-    buf[0] = 0x40; // 0x40: vezérlőbájt adatokhoz
+    buf[0] = 0x40; // 0x40: control byte for data
     for (size_t i = 0; i < len; i++) {
         buf[i + 1] = data[i];
     }

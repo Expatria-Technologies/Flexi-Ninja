@@ -1,10 +1,10 @@
-# stepper-ninja
+# flexi-ninja
 
 An open-source, free, high-performance step generator, quadrature encoder counter, digital I/O, and PWM interface for LinuxCNC.
 
 The encoder module also enables spindle-synchronized motion use cases, for example threading and other spindle-synchronous moves.
 
-You definitely do not need the official breakout board to use stepper-ninja. A cheap printer-port breakout board is enough, and other configurations are also possible.
+You definitely do not need the official breakout board to use flexi-ninja. A cheap printer-port breakout board is enough, and other configurations are also possible.
 
 ![official breakout board](docs/20250812_165926.jpg)
 
@@ -54,7 +54,7 @@ You definitely do not need the official breakout board to use stepper-ninja. A c
 
 - **Open-Source**: code and docs under MIT License.
 
-- **ready-to-run**: prebuilt breakout board UF2 images and the HAL driver are in the binary directory. To install the HAL driver, copy stepgen-ninja.so to your local hal-driver directory.
+- **ready-to-run**: prebuilt breakout board UF2 images and the HAL driver are in the binary directory. To install the HAL driver, copy flexi-ninja.so to your local hal-driver directory.
 
 - **supporters**: all active sponsors at or above $15 get access to the private breakout board repository for personal use, including production files such as Gerbers, BOM, and component positions.
 

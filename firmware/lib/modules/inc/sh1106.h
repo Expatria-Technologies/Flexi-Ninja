@@ -2,7 +2,7 @@
 #ifndef SH1106_H
 #define SH1106_H
 
-// Kijelző mérete
+// Display size
 #define WIDTH 128
 #define HEIGHT 64
 

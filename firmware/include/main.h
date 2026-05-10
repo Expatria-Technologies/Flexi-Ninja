@@ -45,12 +45,12 @@
 // Low-pass filter parameters
 #define ALPHA 0.25f // Smoothing factor (0.0 to 1.0, lower = more smoothing)
 
-#define RPS_SCALE 100000  // 5 tizedesjegy
+#define RPS_SCALE 100000  // 5 decimal places
 
 // -------------------------------------------
-// Globális változók a magok közötti kommunikációhoz
+// Global variables for inter-core communication
 // -------------------------------------------
-// Függvény deklarációk
+// Function declarations
 void stepgen_update_handler();
 static void alarm_irq(void);
 void jump_table_checksum();

@@ -1,1 +1,1 @@
-../firmware/lib/modules/inc/jump_table.h
+/media/NAS/Repositories/Personal/stepper-ninja/firmware/lib/modules/inc/jump_table.h

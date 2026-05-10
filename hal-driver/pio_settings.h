@@ -1,1 +1,1 @@
-../firmware/lib/modules/inc/pio_settings.h
+/media/NAS/Repositories/Personal/stepper-ninja/firmware/lib/modules/inc/pio_settings.h

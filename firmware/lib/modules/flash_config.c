@@ -1,7 +1,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "wizchip_conf.h" // W5100S/W5500 könyvtárból
+#include "wizchip_conf.h" // from W5100S/W5500 library
 #include "hardware/flash.h"
 #include "pico/flash.h"
 #include "hardware/watchdog.h"

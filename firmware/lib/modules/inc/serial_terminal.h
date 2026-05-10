@@ -4,7 +4,7 @@
 void save_configuration();
 void load_configuration();
 void handle_serial_input();
-void process_command(char* command); // Csak char* command, mert net_info globális
+void process_command(char* command); // Only char* command, net_info is global
 
 #endif
 // SERIAL_TERMINAL_H 

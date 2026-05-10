@@ -18,10 +18,10 @@ void ninja_pwm_init(uint8_t pin){
 }
 
 uint16_t pwm_calculate_wrap(uint32_t freq) {
-    // Rendszer órajel lekérése (alapértelmezetten 125 MHz az RP2040 esetén)
+    // Get system clock (default 125 MHz for RP2040)
     uint32_t sys_clock = pico_clock;
     
-    // Wrap kiszámítása fix 1.0 divider-rel
+    // Calculate wrap with fixed 1.0 divider
     uint32_t wrap = (uint32_t)(sys_clock/ freq);
 
     if (freq < 1908){
