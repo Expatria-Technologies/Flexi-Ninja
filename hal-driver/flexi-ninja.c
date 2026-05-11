@@ -369,6 +369,7 @@ static int bb_hal_setup_pins(module_data_t *d, int j, int comp_id,
     }
 
     for (int i = 0; i < out_pins_no; i++) {
+        if (output_pins[i] == GP_NULL) continue;
         memset(name, 0, nsize);
         snprintf(name, nsize, module_name ".%d.output.gp%d", j, output_pins[i]);
         r = hal_pin_bit_newf(HAL_IN, &d->output[i], comp_id, name, j);
@@ -401,6 +402,7 @@ static void bb_hal_process_send(module_data_t *d)
     uint32_t outs1 = 0;
 
     for (uint8_t i = 0; i < out_pins_no; i++) {
+        if (output_pins[i] == GP_NULL) continue;
         if (i < 32) {
             outs0 |= *d->output[i] == 1 ? 1u << i : 0;
         } else {
