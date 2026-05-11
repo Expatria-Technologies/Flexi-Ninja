@@ -118,11 +118,7 @@ typedef struct {
     hal_bit_t *step_ring_overflow;
     hal_bit_t *input[96];
     hal_bit_t *input_not[96];
-    hal_bit_t *rpi_input[32];
-    hal_bit_t *rpi_input_not[32];
-
     hal_bit_t *output[64];
-    hal_bit_t *rpi_output[32];
 
 #if toolchanger_encoder == 1
     hal_bit_t *toolchanger_bit0;

@@ -26,11 +26,7 @@
 
 #pragma message "SPI version"
 #define SPI_SPEED BCM2835_SPI_CLOCK_DIVIDER_128
-const uint8_t rpi_inputs[] = raspi_inputs;
-const uint8_t rpi_outputs[] = raspi_outputs;
-const uint8_t rpi_input_pullup[] = raspi_input_pullups;
-const uint8_t rpi_inputs_no = sizeof(rpi_inputs);
-const uint8_t rpi_outputs_no = sizeof(rpi_outputs);
+#define raspi_int_out 22
 
 #define debug 1
 
@@ -116,11 +112,7 @@ typedef struct {
     hal_bit_t *step_ring_overflow;
     hal_bit_t *input[96];
     hal_bit_t *input_not[96];
-    hal_bit_t *rpi_input[32];
-    hal_bit_t *rpi_input_not[32];
-
     hal_bit_t *output[64];
-    hal_bit_t *rpi_output[32];
 
 #if toolchanger_encoder == 1
     hal_bit_t *toolchanger_bit0;
@@ -553,10 +545,6 @@ void udp_io_process_recv(void *arg, long period)
                 d->enc_prev_pos[i] = *d->enc_position[i];
             }
         #endif
-        for (int i = 0; i < rpi_inputs_no; i++) {
-            *d->rpi_input[i] = bcm2835_gpio_lev(rpi_inputs[i]);
-        }
-
         bb_hal_process_recv(d);
     }
 }
@@ -684,13 +672,6 @@ static void udp_io_process_send(void *arg, long period)
         tx_buffer->pio_timing = nearest(*d->pulse_width);
         #endif
 
-    for (int i = 0; i < rpi_outputs_no; i++) {
-        if (*d->rpi_output[i]) {
-            bcm2835_gpio_set(rpi_outputs[i]);
-        } else {
-            bcm2835_gpio_clr(rpi_outputs[i]);
-        }
-    }
 
     bb_hal_process_send(d);
 
@@ -792,22 +773,6 @@ int rtapi_app_main(void)
         PIN_BIT_INIT(&hal_data[j].step_ring_active, HAL_OUT, 0, module_name ".%d.stepgen.ring-active", j);
         PIN_BIT_INIT(&hal_data[j].step_ring_underflow, HAL_OUT, 0, module_name ".%d.stepgen.ring-underflow", j);
         PIN_BIT_INIT(&hal_data[j].step_ring_overflow, HAL_OUT, 0, module_name ".%d.stepgen.ring-overflow", j);
-
-        for (int i = 0; i < rpi_inputs_no; i++) {
-
-            bcm2835_gpio_fsel(rpi_inputs[i], BCM2835_GPIO_FSEL_INPT);
-            if (rpi_input_pullup[i]) {
-                bcm2835_gpio_set_pud(rpi_inputs[i], BCM2835_GPIO_PUD_UP);
-            } else {
-                bcm2835_gpio_set_pud(rpi_inputs[i], BCM2835_GPIO_PUD_DOWN);
-            }
-            PIN_BIT(&hal_data[j].rpi_input[i], HAL_OUT, module_name ".%d.rpi-input.gp%d", j, rpi_inputs[i]);
-            PIN_BIT(&hal_data[j].rpi_input_not[i], HAL_OUT, module_name ".%d.rpi-input.gp%d-not", j, rpi_inputs[i]);
-        }
-        for (int i = 0; i < rpi_outputs_no; i++) {
-            bcm2835_gpio_fsel(rpi_outputs[i], BCM2835_GPIO_FSEL_OUTP);
-            PIN_BIT_INIT(&hal_data[j].rpi_output[i], HAL_IN, 0, module_name ".%d.rpi-output.gp%d", j, rpi_outputs[i]);
-        }
 
         r = bb_hal_setup_pins(&hal_data[j], j, comp_id, name, nsize);
         if (r < 0) {
