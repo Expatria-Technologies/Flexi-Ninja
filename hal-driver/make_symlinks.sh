@@ -31,7 +31,6 @@ create_link() {
 create_link "firmware/include/config.h" "config.h"
 create_link "firmware/include/footer.h" "footer.h"
 create_link "firmware/include/internals.h" "internals.h"
-create_link "firmware/include/kbmatrix.h" "kbmatrix.h"
 create_link "firmware/lib/modules/inc/jump_table.h" "jump_table.h"
 create_link "firmware/lib/modules/inc/pio_settings.h" "pio_settings.h"
 create_link "firmware/lib/modules/inc/transmission.h" "transmission.h"

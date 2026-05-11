@@ -47,6 +47,7 @@
 
 #ifdef BOARD_FLEXI_2350
 
+    // All GPIO form 0-15 and 22-31 are usable
     #define stepgens 6
     // Step, dir, step invert
     #define STEPGEN_CONFIG { \
@@ -82,8 +83,8 @@
 
     #define out_pins {PIN_NULL}
 
-    // PWM for spindle 0-10v
-    #define use_pwm 1
+    // if you want to use the module with pwm output, set this to 1
+    #define use_pwm 1 // use of pwm output
     #define pwm_count 1
     // GPIO, name, invert
     #define PWM_PINS {{GP26, "SPINDLE_PWM", 0}}
@@ -91,7 +92,7 @@
     #define default_pwm_maxscale 4096 // default pwm max scale if not specified in the HAL configuration
     #define default_pwm_min_limit 0 // default pwm min limit not specified in the HAL configuration
 
-    // Expander GPIO, name
+    // Ex, name
     #define EX_INPUT_PINS { \
         {EX5,  "X_ALM"}, \
         {EX6,  "Y_ALM"}, \
@@ -103,7 +104,7 @@
         {EX4,  "PROBE"}, \
     }
 
-    // Expander GPIO, name
+    // Ex, name
     #define EX_OUTPUT_PINS { \
         {EX29, "X_EN"}, \
         {EX28, "Y_EN"}, \
@@ -125,9 +126,22 @@
         {EX12, "SPINDLE_DIR"}, \
     }
 
+    // SPI port definition (GPIO)
+    #define SPI_PORT        spi1
+    #define GPIO_MISO       GP43
+    #define GPIO_CS         GP41
+    #define GPIO_SCK        GP42
+    #define GPIO_MOSI       GP40
+    #define GPIO_RESET      GP00
+    #define GPIO_INT        GP08
+    #define LED_GPIO        PIN_NULL
+
 #endif // BOARD_FLEXI_2350
 
-
+    // used gpio for SPI on the RPI: 8, 9, 10, 11
+    // used gpio for SPI on the PICO: 40, 41, 42, 43
+    // available GPIO left side:  2,3,4,17,27,33,0,5,6,13,19,26
+    // available GPIO right side: 14,15,18,23,24,25,1,12,16,20,21
     #define default_pulse_width 2500 // default pulse width in nanoseconds, for the stepgen if not specified in the HAL configuration
     #define default_step_scale 1000 // default step scale in steps/unit for the stepgen if not specified in the HAL configuration
     
@@ -137,8 +151,5 @@
     #define encoder_pio_version ENCODER_PIO_SUBSTEP // 0 = old quadrature encoder PIO, 1 = substep encoder PIO
     #endif
 
-    #define KBMATRIX
-
 #include "footer.h"
-#include "kbmatrix.h"
 #endif
