@@ -66,6 +66,10 @@ const GpioPin input_pins[] = INPUT_PINS;
 const uint8_t output_pins[] = out_pins;
 const uint8_t in_pins_no = sizeof(input_pins) / sizeof(input_pins[0]);
 const uint8_t out_pins_no = sizeof(output_pins);
+const ExpanderPin ex_input_pins[] = EX_INPUT_PINS;
+const ExpanderPin ex_output_pins[] = EX_OUTPUT_PINS;
+const uint8_t ex_in_count = sizeof(ex_input_pins) / sizeof(ex_input_pins[0]);
+const uint8_t ex_out_count = sizeof(ex_output_pins) / sizeof(ex_output_pins[0]);
 
 typedef struct {
     char ip[16];
@@ -119,6 +123,9 @@ typedef struct {
     hal_bit_t *input[96];
     hal_bit_t *input_not[96];
     hal_bit_t *output[64];
+    hal_bit_t *ex_input[32];
+    hal_bit_t *ex_input_not[32];
+    hal_bit_t *ex_output[32];
 
 #if toolchanger_encoder == 1
     hal_bit_t *toolchanger_bit0;

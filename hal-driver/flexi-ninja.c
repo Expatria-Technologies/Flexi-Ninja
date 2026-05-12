@@ -65,6 +65,10 @@ const GpioPin input_pins[] = INPUT_PINS;
 const uint8_t output_pins[] = out_pins;
 const uint8_t in_pins_no = sizeof(input_pins) / sizeof(input_pins[0]);
 const uint8_t out_pins_no = sizeof(output_pins);
+const ExpanderPin ex_input_pins[] = EX_INPUT_PINS;
+const ExpanderPin ex_output_pins[] = EX_OUTPUT_PINS;
+const uint8_t ex_in_count = sizeof(ex_input_pins) / sizeof(ex_input_pins[0]);
+const uint8_t ex_out_count = sizeof(ex_output_pins) / sizeof(ex_output_pins[0]);
 
 typedef struct {
     float y;
@@ -113,6 +117,9 @@ typedef struct {
     hal_bit_t *input[96];
     hal_bit_t *input_not[96];
     hal_bit_t *output[64];
+    hal_bit_t *ex_input[32];
+    hal_bit_t *ex_input_not[32];
+    hal_bit_t *ex_output[32];
 
 #if toolchanger_encoder == 1
     hal_bit_t *toolchanger_bit0;
@@ -381,6 +388,37 @@ static int bb_hal_setup_pins(module_data_t *d, int j, int comp_id,
         *d->output[i] = 0;
     }
 
+    for (int i = 0; i < ex_in_count; i++) {
+        memset(name, 0, nsize);
+        snprintf(name, nsize, module_name ".%d.input.%s", j, ex_input_pins[i].name);
+        r = hal_pin_bit_newf(HAL_OUT, &d->ex_input[i], comp_id, name, j);
+        if (r < 0) {
+            rtapi_print_msg(RTAPI_MSG_ERR,
+                module_name ".%d: ERROR: ex pin export failed with err=%i\n", j, r);
+            return r;
+        }
+        memset(name, 0, nsize);
+        snprintf(name, nsize, module_name ".%d.input.%s-not", j, ex_input_pins[i].name);
+        r = hal_pin_bit_newf(HAL_OUT, &d->ex_input_not[i], comp_id, name, j);
+        if (r < 0) {
+            rtapi_print_msg(RTAPI_MSG_ERR,
+                module_name ".%d: ERROR: ex pin export failed with err=%i\n", j, r);
+            return r;
+        }
+    }
+
+    for (int i = 0; i < ex_out_count; i++) {
+        memset(name, 0, nsize);
+        snprintf(name, nsize, module_name ".%d.output.%s", j, ex_output_pins[i].name);
+        r = hal_pin_bit_newf(HAL_IN, &d->ex_output[i], comp_id, name, j);
+        if (r < 0) {
+            rtapi_print_msg(RTAPI_MSG_ERR,
+                module_name ".%d: ERROR: ex pin export failed with err=%i\n", j, r);
+            return r;
+        }
+        *d->ex_output[i] = 0;
+    }
+
     return 0;
 }
 
@@ -393,6 +431,11 @@ static void bb_hal_process_recv(module_data_t *d)
             *d->input[i] = (rx_buffer->inputs[1] >> ((input_pins[i].gpio - 32) & 31)) & 1;
         }
         *d->input_not[i] = !(*d->input[i]);
+    }
+
+    for (int i = 0; i < ex_in_count; i++) {
+        *d->ex_input[i] = (rx_buffer->inputs[2] >> ex_input_pins[i].ex_num) & 1;
+        *d->ex_input_not[i] = !(*d->ex_input[i]);
     }
 }
 
@@ -407,6 +450,12 @@ static void bb_hal_process_send(module_data_t *d)
             outs0 |= *d->output[i] == 1 ? 1u << i : 0;
         } else {
             outs1 |= *d->output[i] == 1 ? 1u << (i & 31) : 0;
+        }
+    }
+
+    for (int i = 0; i < ex_out_count; i++) {
+        if (*d->ex_output[i]) {
+            outs0 |= 1u << ex_output_pins[i].ex_num;
         }
     }
 

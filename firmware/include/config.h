@@ -70,7 +70,6 @@
         {GP24, "HALT", 1}, \
         {GP27, "FEED_HOLD", 1}, \
         {GP30, "CYCLE_START", 1}, \
-        {GP31, "MCU_IRQ", 1}, \
         {GP32, "DOOR", 1}, \
         {GP34, "B_LIM", 1}, \
         {GP35, "A_LIM", 1}, \
@@ -134,6 +133,12 @@
     #define GPIO_RESET      GP00
     #define GPIO_INT        GP08
     #define LED_GPIO        PIN_NULL
+
+    #define use_flexgpio 1
+    #define FLEXGPIO_SDA    GP06
+    #define FLEXGPIO_SCL    GP07
+    #define FLEXGPIO_IRQ    GP31
+    #define FLEXGPIO_ADDR   0x48
 
 #endif // BOARD_FLEXI_2350
 

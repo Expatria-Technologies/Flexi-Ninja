@@ -64,6 +64,34 @@
 
 #define PIN_NULL GP_NULL
 
+// FlexGPIO expander pin number constants
+#define EX3  3
+#define EX4  4
+#define EX5  5
+#define EX6  6
+#define EX7  7
+#define EX8  8
+#define EX9  9
+#define EX10 10
+#define EX11 11
+#define EX12 12
+#define EX13 13
+#define EX14 14
+#define EX16 16
+#define EX17 17
+#define EX18 18
+#define EX19 19
+#define EX20 20
+#define EX21 21
+#define EX22 22
+#define EX23 23
+#define EX24 24
+#define EX25 25
+#define EX26 26
+#define EX27 27
+#define EX28 28
+#define EX29 29
+
 #define IMR_RECV      0x04
 #define Sn_IMR_RECV   0x04
 #define Sn_IR_RECV    0x04
