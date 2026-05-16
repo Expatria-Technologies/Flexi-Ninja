@@ -385,10 +385,12 @@ static int bb_hal_setup_pins(module_data_t *d, int j, int comp_id,
                              char *name, uint32_t nsize)
 {
     int r;
+    char prefix[64];
+    snprintf(prefix, sizeof(prefix), instances > 1 ? module_name ".%d" : module_name, j);
 
     for (int i = 0; i < in_pins_no; i++) {
         memset(name, 0, nsize);
-        snprintf(name, nsize, module_name ".%d.input.%s", j, input_pins[i].name);
+        snprintf(name, nsize, "%s.input.%s", prefix, input_pins[i].name);
         r = hal_pin_bit_newf(HAL_OUT, &d->input[i], comp_id, name, j);
         if (r < 0) {
             rtapi_print_msg(RTAPI_MSG_ERR,
@@ -397,7 +399,7 @@ static int bb_hal_setup_pins(module_data_t *d, int j, int comp_id,
         }
 
         memset(name, 0, nsize);
-        snprintf(name, nsize, module_name ".%d.input.%s-not", j, input_pins[i].name);
+        snprintf(name, nsize, "%s.input.%s-not", prefix, input_pins[i].name);
         r = hal_pin_bit_newf(HAL_OUT, &d->input_not[i], comp_id, name, j);
         if (r < 0) {
             rtapi_print_msg(RTAPI_MSG_ERR,
@@ -409,7 +411,7 @@ static int bb_hal_setup_pins(module_data_t *d, int j, int comp_id,
     for (int i = 0; i < out_pins_no; i++) {
         if (output_pins[i] == GP_NULL) continue;
         memset(name, 0, nsize);
-        snprintf(name, nsize, module_name ".%d.output.gp%d", j, output_pins[i]);
+        snprintf(name, nsize, "%s.output.gp%d", prefix, output_pins[i]);
         r = hal_pin_bit_newf(HAL_IN, &d->output[i], comp_id, name, j);
         if (r < 0) {
             rtapi_print_msg(RTAPI_MSG_ERR,
@@ -855,24 +857,25 @@ int rtapi_app_main(void)
         rtapi_print_msg(RTAPI_MSG_INFO, module_name ".%d: init_socket ready..\n", j);
 
         uint32_t nsize = sizeof(name);
-        PIN_BIT_INIT(&hal_data[j].probe_select, HAL_IN, 0, module_name ".%d.probe-select", j);
-        PIN_BIT(&hal_data[j].connected, HAL_IN, module_name ".%d.connected", j);
+        char prefix[64];
+        snprintf(prefix, sizeof(prefix), instances > 1 ? module_name ".%d" : module_name, j);
+        PIN_BIT_INIT(&hal_data[j].probe_select, HAL_IN, 0, "%s.probe-select", prefix);
+        PIN_BIT(&hal_data[j].connected, HAL_IN, "%s.connected", prefix);
 
         #if stepgens > 0
-        PIN_U32_INIT(&hal_data[j].pulse_width, HAL_IN, default_pulse_width, module_name ".%d.stepgen.pulse-width", j);
+        PIN_U32_INIT(&hal_data[j].pulse_width, HAL_IN, default_pulse_width, "%s.stepgen.pulse-width", prefix);
 
             #if debug == 1
-            PIN_FLOAT(&hal_data[j].debug_freq, HAL_OUT, module_name ".%d.stepgen.max-freq-khz", j);
-            PIN_BIT(&hal_data[j].debug_steps_reset, HAL_IN, module_name ".%d.stepgen.debug-steps-reset", j);
+            PIN_FLOAT(&hal_data[j].debug_freq, HAL_OUT, "%s.stepgen.max-freq-khz", prefix);
+            PIN_BIT(&hal_data[j].debug_steps_reset, HAL_IN, "%s.stepgen.debug-steps-reset", prefix);
             #endif
         #endif
 
-        PIN_S32(&hal_data[j].jitter, HAL_OUT, module_name ".%d.jitter", j);
-        PIN_U32_INIT(&hal_data[j].step_ring_fill, HAL_OUT, 0, module_name ".%d.stepgen.ring-fill", j);
-        PIN_BIT_INIT(&hal_data[j].step_ring_active, HAL_OUT, 0, module_name ".%d.stepgen.ring-active", j);
-        PIN_BIT_INIT(&hal_data[j].step_ring_underflow, HAL_OUT, 0, module_name ".%d.stepgen.ring-underflow", j);
-        PIN_BIT_INIT(&hal_data[j].step_ring_overflow, HAL_OUT, 0, module_name ".%d.stepgen.ring-overflow", j);
-
+        PIN_S32(&hal_data[j].jitter, HAL_OUT, "%s.jitter", prefix);
+        PIN_U32_INIT(&hal_data[j].step_ring_fill, HAL_OUT, 0, "%s.stepgen.ring-fill", prefix);
+        PIN_BIT_INIT(&hal_data[j].step_ring_active, HAL_OUT, 0, "%s.stepgen.ring-active", prefix);
+        PIN_BIT_INIT(&hal_data[j].step_ring_underflow, HAL_OUT, 0, "%s.stepgen.ring-underflow", prefix);
+        PIN_BIT_INIT(&hal_data[j].step_ring_overflow, HAL_OUT, 0, "%s.stepgen.ring-overflow", prefix);
 
 
         r = bb_hal_setup_pins(&hal_data[j], j, comp_id, name, nsize);
@@ -884,34 +887,34 @@ int rtapi_app_main(void)
         /* Breakout boards with analog channels register them in board helpers. */
         #if ANALOG_CH > 0
             for (int i = 0; i < ANALOG_CH; i++) {
-                PIN_BIT_INIT(&hal_data[j].analog_enable[i], HAL_IN, 0, module_name ".%d.analog.%d.enable", j, i);
-                PIN_FLOAT_INIT(&hal_data[j].analog_min[i], HAL_IN, 0.0, module_name ".%d.analog.%d.minimum", j, i);
-                PIN_FLOAT_INIT(&hal_data[j].analog_max[i], HAL_IN, 0.0, module_name ".%d.analog.%d.maximum", j, i);
-                PIN_FLOAT_INIT(&hal_data[j].analog_value[i], HAL_IN, 0.0, module_name ".%d.analog.%d.value", j, i);
+                PIN_BIT_INIT(&hal_data[j].analog_enable[i], HAL_IN, 0, "%s.analog.%d.enable", prefix, i);
+                PIN_FLOAT_INIT(&hal_data[j].analog_min[i], HAL_IN, 0.0, "%s.analog.%d.minimum", prefix, i);
+                PIN_FLOAT_INIT(&hal_data[j].analog_max[i], HAL_IN, 0.0, "%s.analog.%d.maximum", prefix, i);
+                PIN_FLOAT_INIT(&hal_data[j].analog_value[i], HAL_IN, 0.0, "%s.analog.%d.value", prefix, i);
             }
         #endif
 
         #if use_pwm == 1
             for (int i = 0; i < pwm_count; ++i) {
-                PIN_BIT_INIT(&hal_data[j].pwm_enable[i], HAL_IN, 0, module_name ".%d.pwm.%d.enable", j, i);
-                PIN_U32(&hal_data[j].pwm_output[i], HAL_IN, module_name ".%d.pwm.%d.duty", j, i);
-                PIN_U32_INIT(&hal_data[j].pwm_frequency[i], HAL_IN, default_pwm_frequency, module_name ".%d.pwm.%d.frequency", j, i);
-                PIN_U32_INIT(&hal_data[j].pwm_min_limit[i], HAL_IN, 0, module_name ".%d.pwm.%d.min-limit", j, i);
-                PIN_U32_INIT(&hal_data[j].pwm_maxscale[i], HAL_IN, default_pwm_maxscale, module_name ".%d.pwm.%d.max-scale", j, i);
+                PIN_BIT_INIT(&hal_data[j].pwm_enable[i], HAL_IN, 0, "%s.pwm.%d.enable", prefix, i);
+                PIN_U32(&hal_data[j].pwm_output[i], HAL_IN, "%s.pwm.%d.duty", prefix, i);
+                PIN_U32_INIT(&hal_data[j].pwm_frequency[i], HAL_IN, default_pwm_frequency, "%s.pwm.%d.frequency", prefix, i);
+                PIN_U32_INIT(&hal_data[j].pwm_min_limit[i], HAL_IN, 0, "%s.pwm.%d.min-limit", prefix, i);
+                PIN_U32_INIT(&hal_data[j].pwm_maxscale[i], HAL_IN, default_pwm_maxscale, "%s.pwm.%d.max-scale", prefix, i);
             }
         #endif
 
         #if stepgens > 0
         for (int i = 0; i < stepgens; i++) {
             #if debug == 1
-            PIN_S32_INIT(&hal_data[j].debug_steps[i], HAL_OUT, 0, module_name ".%d.stepgen.%d.debug-steps", j, i);
+            PIN_S32_INIT(&hal_data[j].debug_steps[i], HAL_OUT, 0, "%s.stepgen.%d.debug-steps", prefix, i);
             #endif
 
-            PIN_FLOAT(&hal_data[j].command[i], HAL_IN, module_name ".%d.stepgen.%d.command", j, i);
-            PIN_FLOAT_INIT(&hal_data[j].scale[i], HAL_IN, default_step_scale, module_name ".%d.stepgen.%d.step-scale", j, i);
-            PIN_FLOAT(&hal_data[j].feedback[i], HAL_OUT, module_name ".%d.stepgen.%d.feedback", j, i);
-            PIN_BIT_INIT(&hal_data[j].mode[i], HAL_IN, 0, module_name ".%d.stepgen.%d.mode", j, i);
-            PIN_BIT_INIT(&hal_data[j].enable[i], HAL_IN, 0, module_name ".%d.stepgen.%d.enable", j, i);
+            PIN_FLOAT(&hal_data[j].command[i], HAL_IN, "%s.stepgen.%d.command", prefix, i);
+            PIN_FLOAT_INIT(&hal_data[j].scale[i], HAL_IN, default_step_scale, "%s.stepgen.%d.step-scale", prefix, i);
+            PIN_FLOAT(&hal_data[j].feedback[i], HAL_OUT, "%s.stepgen.%d.feedback", prefix, i);
+            PIN_BIT_INIT(&hal_data[j].mode[i], HAL_IN, 0, "%s.stepgen.%d.mode", prefix, i);
+            PIN_BIT_INIT(&hal_data[j].enable[i], HAL_IN, 0, "%s.stepgen.%d.enable", prefix, i);
         }
         #endif
         #if encoders > 0
@@ -920,30 +923,30 @@ int rtapi_app_main(void)
             hal_data[j].delta_count_accum[i] = 0;
             hal_data[j].enc_timestamp[i] = 0;
             #if use_stepcounter == 1
-                #define e_name module_name ".%d.stepcounter"
+                #define e_name ".stepcounter"
             #else
-                #define e_name module_name ".%d.encoder"
+                #define e_name ".encoder"
             #endif
             hal_data[j].enc_offset[i] = 0;
-            PIN_S32(&hal_data[j].raw_count[i], HAL_OUT, e_name ".%d.raw-count", j, i);
-            PIN_FLOAT(&hal_data[j].enc_position[i], HAL_OUT, e_name ".%d.position", j, i);
-            PIN_FLOAT_INIT(&hal_data[j].enc_scale[i], HAL_IN, 1, e_name ".%d.scale", j, i);
-            PIN_FLOAT(&hal_data[j].enc_velocity[i], HAL_OUT, e_name ".%d.velocity-rps", j, i);
-            PIN_BIT(&hal_data[j].enc_index[i], HAL_IN, e_name ".%d.index-enable", j, i);
-            PIN_FLOAT(&hal_data[j].enc_rpm[i], HAL_OUT, e_name ".%d.velocity-rpm", j, i);
+            PIN_S32(&hal_data[j].raw_count[i], HAL_OUT, "%s" e_name ".%d.raw-count", prefix, i);
+            PIN_FLOAT(&hal_data[j].enc_position[i], HAL_OUT, "%s" e_name ".%d.position", prefix, i);
+            PIN_FLOAT_INIT(&hal_data[j].enc_scale[i], HAL_IN, 1, "%s" e_name ".%d.scale", prefix, i);
+            PIN_FLOAT(&hal_data[j].enc_velocity[i], HAL_OUT, "%s" e_name ".%d.velocity-rps", prefix, i);
+            PIN_BIT(&hal_data[j].enc_index[i], HAL_IN, "%s" e_name ".%d.index-enable", prefix, i);
+            PIN_FLOAT(&hal_data[j].enc_rpm[i], HAL_OUT, "%s" e_name ".%d.velocity-rpm", prefix, i);
             #if debug == 1
-            PIN_BIT_INIT(&hal_data[j].enc_reset[i], HAL_IN, 0, e_name ".%d.debug-reset", j, i);
+            PIN_BIT_INIT(&hal_data[j].enc_reset[i], HAL_IN, 0, "%s" e_name ".%d.debug-reset", prefix, i);
             hal_data[j].enc_prev_pos[i] = 0;
             #endif
         }
         #endif
 
-        PIN_U32(&hal_data[j].period, HAL_IN, module_name ".%d.period", j);
-        PIN_BIT(&hal_data[j].io_ready_in, HAL_IN, module_name ".%d.io-ready-in", j);
-        PIN_BIT(&hal_data[j].io_ready_out, HAL_OUT, module_name ".%d.io-ready-out", j);
+        PIN_U32(&hal_data[j].period, HAL_IN, "%s.period", prefix);
+        PIN_BIT(&hal_data[j].io_ready_in, HAL_IN, "%s.io-ready-in", prefix);
+        PIN_BIT(&hal_data[j].io_ready_out, HAL_OUT, "%s.io-ready-out", prefix);
         #pragma message "Adding export functions. (watchdog)"
         char watchdog_name[48] = {0};
-        snprintf(watchdog_name, sizeof(watchdog_name), module_name ".%d.watchdog-process", j);
+        snprintf(watchdog_name, sizeof(watchdog_name), "%s.watchdog-process", prefix);
         rtapi_print_msg(RTAPI_MSG_INFO, module_name ".%d: hal_export_funct for watchdog-process: %d init...\n", j, r);
         r = hal_export_funct(watchdog_name, watchdog_process, &hal_data[j], 1, 1, comp_id);
         if (r < 0) {
@@ -955,7 +958,7 @@ int rtapi_app_main(void)
 
         #pragma message "Adding export functions. (process-send)"
         char process_send[48] = {0};
-        snprintf(process_send, sizeof(process_send), module_name ".%d.process-send", j);
+        snprintf(process_send, sizeof(process_send), "%s.process-send", prefix);
         rtapi_print_msg(RTAPI_MSG_INFO, module_name ".%d: hal_export_funct for process-send %d init...\n", j, r);
         r = hal_export_funct(process_send, udp_io_process_send, &hal_data[j], 1, 1, comp_id);
         if (r < 0) {
@@ -967,7 +970,7 @@ int rtapi_app_main(void)
 
         #pragma message "Adding export functions. (process-recv)"
         char process_recv[48] = {0};
-        snprintf(process_recv, sizeof(process_recv), module_name ".%d.process-recv", j);
+        snprintf(process_recv, sizeof(process_recv), "%s.process-recv", prefix);
         rtapi_print_msg(RTAPI_MSG_INFO, module_name ".%d: hal_export_funct for process-recv: %d init...\n", j, r);
         r = hal_export_funct(process_recv, udp_io_process_recv, &hal_data[j], 1, 1, comp_id);
         if (r < 0) {
