@@ -15,9 +15,9 @@ setp flexi-ninja-eth.stepgen.0.step-scale [JOINT_0]INPUT_SCALE
 setp flexi-ninja-eth.stepgen.1.step-scale [JOINT_1]INPUT_SCALE
 setp flexi-ninja-eth.stepgen.2.step-scale [JOINT_2]INPUT_SCALE
 
-setp flexi-ninja-eth.encoder.0.scale 0.25
-setp flexi-ninja-eth.encoder.1.scale 0.25
-setp flexi-ninja-eth.encoder.2.scale 0.25
+setp flexi-ninja-eth.encoder.ENC1.scale 0.25
+setp flexi-ninja-eth.encoder.ENC2.scale 0.25
+setp flexi-ninja-eth.encoder.ENC3.scale 0.25
 
 setp axis.x.jog-scale 0.01
 setp axis.y.jog-scale 0.01

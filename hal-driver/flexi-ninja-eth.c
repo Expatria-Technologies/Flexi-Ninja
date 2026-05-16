@@ -70,6 +70,7 @@ const ExpanderPin ex_input_pins[] = EX_INPUT_PINS;
 const ExpanderPin ex_output_pins[] = EX_OUTPUT_PINS;
 const uint8_t ex_in_count = sizeof(ex_input_pins) / sizeof(ex_input_pins[0]);
 const uint8_t ex_out_count = sizeof(ex_output_pins) / sizeof(ex_output_pins[0]);
+const EncoderPin encoder_config[] = ENCODER_CONFIG;
 
 typedef struct {
     char ip[16];
@@ -928,14 +929,14 @@ int rtapi_app_main(void)
                 #define e_name ".encoder"
             #endif
             hal_data[j].enc_offset[i] = 0;
-            PIN_S32(&hal_data[j].raw_count[i], HAL_OUT, "%s" e_name ".%d.raw-count", prefix, i);
-            PIN_FLOAT(&hal_data[j].enc_position[i], HAL_OUT, "%s" e_name ".%d.position", prefix, i);
-            PIN_FLOAT_INIT(&hal_data[j].enc_scale[i], HAL_IN, 1, "%s" e_name ".%d.scale", prefix, i);
-            PIN_FLOAT(&hal_data[j].enc_velocity[i], HAL_OUT, "%s" e_name ".%d.velocity-rps", prefix, i);
-            PIN_BIT(&hal_data[j].enc_index[i], HAL_IN, "%s" e_name ".%d.index-enable", prefix, i);
-            PIN_FLOAT(&hal_data[j].enc_rpm[i], HAL_OUT, "%s" e_name ".%d.velocity-rpm", prefix, i);
+            PIN_S32(&hal_data[j].raw_count[i], HAL_OUT, "%s" e_name ".%s.raw-count", prefix, encoder_config[i].name);
+            PIN_FLOAT(&hal_data[j].enc_position[i], HAL_OUT, "%s" e_name ".%s.position", prefix, encoder_config[i].name);
+            PIN_FLOAT_INIT(&hal_data[j].enc_scale[i], HAL_IN, 1, "%s" e_name ".%s.scale", prefix, encoder_config[i].name);
+            PIN_FLOAT(&hal_data[j].enc_velocity[i], HAL_OUT, "%s" e_name ".%s.velocity-rps", prefix, encoder_config[i].name);
+            PIN_BIT(&hal_data[j].enc_index[i], HAL_IN, "%s" e_name ".%s.index-enable", prefix, encoder_config[i].name);
+            PIN_FLOAT(&hal_data[j].enc_rpm[i], HAL_OUT, "%s" e_name ".%s.velocity-rpm", prefix, encoder_config[i].name);
             #if debug == 1
-            PIN_BIT_INIT(&hal_data[j].enc_reset[i], HAL_IN, 0, "%s" e_name ".%d.debug-reset", prefix, i);
+            PIN_BIT_INIT(&hal_data[j].enc_reset[i], HAL_IN, 0, "%s" e_name ".%s.debug-reset", prefix, encoder_config[i].name);
             hal_data[j].enc_prev_pos[i] = 0;
             #endif
         }
