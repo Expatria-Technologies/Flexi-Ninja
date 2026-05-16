@@ -95,9 +95,9 @@
         {EX5,  "X_ALM"}, \
         {EX6,  "Y_ALM"}, \
         {EX7,  "Z_ALM"}, \
-        {EX8,  "M3_ALM"}, \
-        {EX9,  "M4_ALM"}, \
-        {EX10, "M5_ALM"}, \
+        {EX8,  "A_ALM"}, \
+        {EX9,  "B_ALM"}, \
+        {EX10, "C_ALM"}, \
         {EX3,  "TOOL"}, \
         {EX4,  "PROBE"}, \
     }
@@ -107,9 +107,9 @@
         {EX29, "X_EN"}, \
         {EX28, "Y_EN"}, \
         {EX27, "Z_EN"}, \
-        {EX26, "M3_EN"}, \
-        {EX25, "M4_EN"}, \
-        {EX24, "M5_EN"}, \
+        {EX26, "A_EN"}, \
+        {EX25, "B_EN"}, \
+        {EX24, "C_EN"}, \
         {EX13, "MIST"}, \
         {EX14, "COOL"}, \
         {EX23, "AUXOUT_0"}, \
