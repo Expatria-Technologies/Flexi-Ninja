@@ -65,6 +65,9 @@
 #define PIN_NULL GP_NULL
 
 // FlexGPIO expander pin number constants
+//#define EX0  0 - SDA
+//#define EX1  1 - SCL
+//#define EX2  2 - MCU_IRQ
 #define EX3  3
 #define EX4  4
 #define EX5  5

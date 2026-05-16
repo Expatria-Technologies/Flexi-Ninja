@@ -71,7 +71,8 @@ void flexgpio_push_outputs(const uint32_t *outputs)
     output_packet_t out;
     out.value = outputs[0];
     out.mcu_irq_mask = EX_INPUT_MASK;
-    out.probe_irq_mask = (1u << 4);
+    out.probe_irq_mask = (outputs[0] & (1u << 31)) ? (1u << 3) : (1u << 4);
+    out.value &= ~(1u << 31);
     flexgpio_write(&out);
 }
 

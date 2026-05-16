@@ -145,6 +145,7 @@ typedef struct {
     hal_bit_t *debug_steps_reset;
 #endif
     hal_u32_t *period;
+    hal_bit_t *probe_select;
     hal_bit_t *connected;
     hal_bit_t *io_ready_in;
     hal_bit_t *io_ready_out;
@@ -446,6 +447,14 @@ static void bb_hal_process_send(module_data_t *d)
             outs1 |= *d->output[i] == 1 ? 1u << (i & 31) : 0;
         }
     }
+
+    for (int i = 0; i < ex_out_count; i++) {
+        if (*d->ex_output[i]) {
+            outs0 |= 1u << ex_output_pins[i].ex_num;
+        }
+    }
+
+    if (*d->probe_select) outs0 |= (1u << 31);
 
     tx_buffer->outputs[0] = outs0;
     tx_buffer->outputs[1] = outs1;
@@ -846,6 +855,7 @@ int rtapi_app_main(void)
         rtapi_print_msg(RTAPI_MSG_INFO, module_name ".%d: init_socket ready..\n", j);
 
         uint32_t nsize = sizeof(name);
+        PIN_BIT_INIT(&hal_data[j].probe_select, HAL_IN, 0, module_name ".%d.probe-select", j);
         PIN_BIT(&hal_data[j].connected, HAL_IN, module_name ".%d.connected", j);
 
         #if stepgens > 0

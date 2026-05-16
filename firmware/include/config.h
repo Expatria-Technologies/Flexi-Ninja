@@ -139,6 +139,7 @@
     #define FLEXGPIO_SCL    GP07
     #define FLEXGPIO_IRQ    GP31
     #define FLEXGPIO_ADDR   0x48
+    #define PROBE_SELECT_BIT 31
 
 #endif // BOARD_FLEXI_2350
 
