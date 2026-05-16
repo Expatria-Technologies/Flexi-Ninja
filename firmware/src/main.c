@@ -411,7 +411,7 @@ int main() {
     network_init();
     #else
     printf("Raspberry PI spi communication.\n");
-    spi_init(SPI_PORT, 4000 * 1000); //4mhz for now
+    spi_init(SPI_PORT, 8 * 1000 * 1000); //8mhz
     spi_set_slave(SPI_PORT, true);
     // In slave mode CPSR must be >= 12 and SCR = 0 for correct operation.
     // spi_set_baudrate (called by spi_init) computes these for master mode

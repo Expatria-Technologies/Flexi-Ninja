@@ -37,6 +37,7 @@
         uint8_t base_pin;
         uint8_t index_pin;
         uint8_t index_active_level;
+        const char name[16];
     } EncoderPin;
 
     typedef struct {
@@ -61,8 +62,8 @@
     #define encoders 2
     // Base, index, index active level
     #define ENCODER_CONFIG { \
-        {GP09, GP11, high}, \
-        {GP45, GP47, high}, \
+        {GP09, GP11, high, "ENC1"}, \
+        {GP45, GP47, high, "ENC2"}, \
     }
 
     // GPIO, name, pullup

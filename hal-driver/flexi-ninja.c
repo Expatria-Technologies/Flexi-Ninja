@@ -25,7 +25,7 @@
 #define module_name MODULE_NAME
 
 #pragma message "SPI version"
-#define SPI_SPEED BCM2835_SPI_CLOCK_DIVIDER_128
+#define SPI_SPEED BCM2835_SPI_CLOCK_DIVIDER_64
 #define raspi_int_out 22
 
 #define debug 1
