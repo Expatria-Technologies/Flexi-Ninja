@@ -422,7 +422,7 @@ void watchdog_process(void *arg, long period)
     }
     if (elapsed > d->watchdog_timeout) {
         if (d->watchdog_expired == 0) {
-            rtapi_print_msg(RTAPI_MSG_ERR, module_name ".%d: No transmission, check connection settings and restart Linuxcnc\n", d->index);
+            rtapi_print_msg(RTAPI_MSG_ERR, module_name ".%d: Communication error. Check connections and restart LinuxCNC.\n", d->index);
             d->checksum_index_in = 1;
             d->checksum_index = 1;
         }
@@ -652,11 +652,11 @@ void udp_io_process_recv(void *arg, long period)
 
     if (len == rx_size) {
         if (!tx_checksum_ok(rx_buffer) && debug_mode == 0) {
-            rtapi_print_msg(RTAPI_MSG_ERR, module_name ".%d: checksum error: %d != %d\n",
+            rtapi_print_msg(RTAPI_MSG_INFO, module_name ".%d: checksum error: %d != %d\n",
                 d->index, rx_buffer->checksum, calculate_checksum(rx_buffer, rx_size - 1));
             printbuf((uint8_t *)rx_buffer, rx_size);
             d->checksum_error = 1;
-            d->connected = 0;
+            *d->connected = 0;
             *d->step_ring_fill = 0;
             *d->step_ring_active = 0;
             *d->step_ring_underflow = 0;
