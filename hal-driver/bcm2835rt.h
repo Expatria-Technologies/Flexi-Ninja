@@ -102,6 +102,7 @@ int bcm2835_init_rt(void)
       bcm2835_st   = bcm2835_peripherals + BCM2835_ST_BASE/4;
       bcm2835_aux  = bcm2835_peripherals + BCM2835_AUX_BASE/4;
       bcm2835_spi1 = bcm2835_peripherals + BCM2835_SPI1_BASE/4;
+      bcm2835_spi6 = bcm2835_peripherals + BCM2835_SPI6_BASE/4;
       /* BEB */
       bcm2835_smi  = bcm2835_peripherals + BCM2835_SMI_BASE/4;
 

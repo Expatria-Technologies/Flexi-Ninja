@@ -26,7 +26,11 @@
 
 #pragma message "SPI version"
 #define SPI_SPEED BCM2835_SPI_CLOCK_DIVIDER_64
+#define SPI_SPEED_HZ 4000000
 #define raspi_int_out 22
+
+static int spi_bus = 6;
+RTAPI_MP_INT(spi_bus, "SPI bus number (0=SPI0, 1=SPI1 on GPIOs 16,19,20,21, 6=SPI6 on GPIOs 19,20,21 CE1 GPIO27)");
 
 #define debug 1
 
@@ -278,12 +282,30 @@ static void init_spi(void)
         return;
     }
 
-    bcm2835_spi_begin();
-    bcm2835_spi_setBitOrder(BCM2835_SPI_BIT_ORDER_MSBFIRST);
-    bcm2835_spi_setDataMode(BCM2835_SPI_MODE3);
-    bcm2835_spi_setClockDivider(SPI_SPEED);
-    bcm2835_spi_chipSelect(BCM2835_SPI_CS0);
-    bcm2835_spi_setChipSelectPolarity(BCM2835_SPI_CS0, LOW);
+    rtapi_print_msg(RTAPI_MSG_INFO, module_name ": resetting RP2350 via GPIO17 (100ms pulse)\n");
+    bcm2835_gpio_fsel(17, BCM2835_GPIO_FSEL_OUTP);
+    bcm2835_gpio_clr(17);
+    rtapi_print_msg(RTAPI_MSG_INFO, module_name ": GPIO17 held low, waiting 100ms\n");
+    bcm2835_delay(100);
+    bcm2835_gpio_set(17);
+    rtapi_print_msg(RTAPI_MSG_INFO, module_name ": GPIO17 released high, waiting 2s for RP2350 to boot\n");
+    bcm2835_delay(2000);
+
+    if (spi_bus == 6) {
+        rtapi_print_msg(RTAPI_MSG_INFO, module_name ": using SPI6 on GPIOs 19,20,21 CE1 GPIO27\n");
+        bcm2835_spi6_begin();
+        bcm2835_spi6_setClockDivider(SPI_SPEED);
+        bcm2835_spi6_setDataMode(BCM2835_SPI_MODE3);
+        bcm2835_spi6_chipSelect(BCM2835_SPI_CS1);
+        bcm2835_spi6_setChipSelectPolarity(BCM2835_SPI_CS1, LOW);
+    } else {
+        bcm2835_spi_begin();
+        bcm2835_spi_setBitOrder(BCM2835_SPI_BIT_ORDER_MSBFIRST);
+        bcm2835_spi_setDataMode(BCM2835_SPI_MODE3);
+        bcm2835_spi_setClockDivider(SPI_SPEED);
+        bcm2835_spi_chipSelect(BCM2835_SPI_CS0);
+        bcm2835_spi_setChipSelectPolarity(BCM2835_SPI_CS0, LOW);
+    }
 
     bcm2835_gpio_fsel(raspi_int_out, BCM2835_GPIO_FSEL_OUTP);
     bcm2835_gpio_set(raspi_int_out);
@@ -482,7 +504,11 @@ static int _send(void *arg)
     memset(spi_tx_buffer, 0, sizeof(spi_tx_buffer));
     memset(spi_rx_buffer, 0, sizeof(spi_rx_buffer));
     memcpy(spi_tx_buffer, tx_buffer, tx_size);
-    bcm2835_spi_transfernb((char *)spi_tx_buffer, (char *)spi_rx_buffer, SPI_TRANSFER_SIZE);
+    if (spi_bus == 6) {
+        bcm2835_spi6_transfernb((char *)spi_tx_buffer, (char *)spi_rx_buffer, SPI_TRANSFER_SIZE);
+    } else {
+        bcm2835_spi_transfernb((char *)spi_tx_buffer, (char *)spi_rx_buffer, SPI_TRANSFER_SIZE);
+    }
     memcpy(rx_buffer, spi_rx_buffer, rx_size);
     bcm2835_gpio_set(raspi_int_out);
     return rx_size;
@@ -952,8 +978,12 @@ void rtapi_app_exit(void)
 {
     for (int i = 0; i < instances; i++) {
         rtapi_print_msg(RTAPI_MSG_INFO, module_name ".%d: Exiting component\n", i);
-        bcm2835_spi_end();
-        bcm2835_close();
     }
+    if (spi_bus == 6) {
+        bcm2835_spi6_end();
+    } else {
+        bcm2835_spi_end();
+    }
+    bcm2835_close();
     hal_exit(comp_id);
 }

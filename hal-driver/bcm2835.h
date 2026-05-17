@@ -736,6 +736,8 @@
 #define BCM2835_SPI1_BASE				0x215080
 /*! Base Address of the AUX_SPI2 registers */
 #define BCM2835_SPI2_BASE				0x2150C0
+/*! Base Address of the SPI6 registers (BCM2711 only) */
+#define BCM2835_SPI6_BASE				0x204C00
 /*! Base Address of the BSC1 registers */
 #define BCM2835_BSC1_BASE				0x804000
 
@@ -805,6 +807,11 @@ extern volatile uint32_t *bcm2835_aux;
 */
 extern volatile uint32_t *bcm2835_spi1;
 
+/*! Base of the SPI6 registers (BCM2711 only).
+  Available after bcm2835_init has been called (as root)
+*/
+extern volatile uint32_t *bcm2835_spi6;
+
 /* BEB */
 /*! Base of SMI registers.
   Available after bcm2835_init has been called (as root)
@@ -827,7 +834,8 @@ typedef enum
     BCM2835_REGBASE_AUX  = 9, /*!< Base of the AUX registers. */
     BCM2835_REGBASE_SPI1 = 10,/*!< Base of the SPI1 registers. */
     /* BEB */
-    BCM2835_REGBASE_SMI = 11  /*!< Base of the SMI registers. */
+    BCM2835_REGBASE_SMI = 11, /*!< Base of the SMI registers. */
+    BCM2835_REGBASE_SPI6 = 12 /*!< Base of the SPI6 registers. */
 
 } bcm2835RegisterBase;
 
@@ -1967,6 +1975,15 @@ extern "C" {
     */
     extern uint8_t bcm2835_aux_spi_transfer(uint8_t value);
     
+    /*! SPI6 functions (BCM2711 full SPI master, identical register layout to SPI0) */
+    extern int bcm2835_spi6_begin(void);
+    extern void bcm2835_spi6_end(void);
+    extern void bcm2835_spi6_setClockDivider(uint16_t divider);
+    extern void bcm2835_spi6_setDataMode(uint8_t mode);
+    extern void bcm2835_spi6_chipSelect(uint8_t cs);
+    extern void bcm2835_spi6_setChipSelectPolarity(uint8_t cs, uint8_t active);
+    extern void bcm2835_spi6_transfernb(char* tbuf, char* rbuf, uint32_t len);
+
     /*! @} */
 
     /*! \defgroup i2c I2C access

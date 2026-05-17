@@ -61,6 +61,7 @@ volatile uint32_t *bcm2835_bsc1        = (uint32_t *)MAP_FAILED;
 volatile uint32_t *bcm2835_st	       = (uint32_t *)MAP_FAILED;
 volatile uint32_t *bcm2835_aux	       = (uint32_t *)MAP_FAILED;
 volatile uint32_t *bcm2835_spi1        = (uint32_t *)MAP_FAILED;
+volatile uint32_t *bcm2835_spi6        = (uint32_t *)MAP_FAILED;
 /* BEB*/
 volatile uint32_t *bcm2835_smi         = (uint32_t *)MAP_FAILED;
 
@@ -181,7 +182,8 @@ uint32_t* bcm2835_regbase(uint8_t regbase)
         /* BEB */
         case BCM2835_REGBASE_SMI:
 	    return (uint32_t *)bcm2835_smi;
-
+	case BCM2835_REGBASE_SPI6:
+	    return (uint32_t *)bcm2835_spi6;
 
     }
     return (uint32_t *)MAP_FAILED;
@@ -945,6 +947,93 @@ void bcm2835_spi_write(uint16_t data)
     /* Set TA = 0, and also set the barrier */
     bcm2835_peri_set_bits(paddr, 0, BCM2835_SPI0_CS_TA);
 #endif
+}
+
+/* SPI6 functions (BCM2711 full SPI master, same register layout as SPI0) */
+
+int bcm2835_spi6_begin(void)
+{
+    volatile uint32_t* paddr;
+
+    if (bcm2835_spi6 == MAP_FAILED)
+        return 0;
+
+    bcm2835_gpio_fsel(18, BCM2835_GPIO_FSEL_ALT3); /* CE0_N */
+    bcm2835_gpio_fsel(19, BCM2835_GPIO_FSEL_ALT3); /* MISO */
+    bcm2835_gpio_fsel(20, BCM2835_GPIO_FSEL_ALT3); /* MOSI */
+    bcm2835_gpio_fsel(21, BCM2835_GPIO_FSEL_ALT3); /* SCLK */
+    bcm2835_gpio_fsel(27, BCM2835_GPIO_FSEL_ALT5); /* CE1_N */
+
+    paddr = bcm2835_spi6 + BCM2835_SPI0_CS/4;
+    bcm2835_peri_write(paddr, 0);
+
+    bcm2835_peri_write_nb(paddr, BCM2835_SPI0_CS_CLEAR);
+
+    return 1;
+}
+
+void bcm2835_spi6_end(void)
+{
+    bcm2835_gpio_fsel(18, BCM2835_GPIO_FSEL_INPT);
+    bcm2835_gpio_fsel(19, BCM2835_GPIO_FSEL_INPT);
+    bcm2835_gpio_fsel(20, BCM2835_GPIO_FSEL_INPT);
+    bcm2835_gpio_fsel(21, BCM2835_GPIO_FSEL_INPT);
+    bcm2835_gpio_fsel(27, BCM2835_GPIO_FSEL_INPT);
+}
+
+void bcm2835_spi6_setClockDivider(uint16_t divider)
+{
+    volatile uint32_t* paddr = bcm2835_spi6 + BCM2835_SPI0_CLK/4;
+    bcm2835_peri_write(paddr, divider);
+}
+
+void bcm2835_spi6_setDataMode(uint8_t mode)
+{
+    volatile uint32_t* paddr = bcm2835_spi6 + BCM2835_SPI0_CS/4;
+    bcm2835_peri_set_bits(paddr, mode << 2, BCM2835_SPI0_CS_CPOL | BCM2835_SPI0_CS_CPHA);
+}
+
+void bcm2835_spi6_chipSelect(uint8_t cs)
+{
+    volatile uint32_t* paddr = bcm2835_spi6 + BCM2835_SPI0_CS/4;
+    bcm2835_peri_set_bits(paddr, cs, BCM2835_SPI0_CS_CS);
+}
+
+void bcm2835_spi6_setChipSelectPolarity(uint8_t cs, uint8_t active)
+{
+    volatile uint32_t* paddr = bcm2835_spi6 + BCM2835_SPI0_CS/4;
+    uint8_t shift = 21 + cs;
+    bcm2835_peri_set_bits(paddr, active << shift, 1 << shift);
+}
+
+void bcm2835_spi6_transfernb(char* tbuf, char* rbuf, uint32_t len)
+{
+    volatile uint32_t* paddr = bcm2835_spi6 + BCM2835_SPI0_CS/4;
+    volatile uint32_t* fifo = bcm2835_spi6 + BCM2835_SPI0_FIFO/4;
+    uint32_t TXCnt=0;
+    uint32_t RXCnt=0;
+
+    bcm2835_peri_set_bits(paddr, BCM2835_SPI0_CS_CLEAR, BCM2835_SPI0_CS_CLEAR);
+
+    bcm2835_peri_set_bits(paddr, BCM2835_SPI0_CS_TA, BCM2835_SPI0_CS_TA);
+
+    while((TXCnt < len)||(RXCnt < len))
+    {
+        while(((bcm2835_peri_read(paddr) & BCM2835_SPI0_CS_TXD))&&(TXCnt < len ))
+        {
+            bcm2835_peri_write_nb(fifo, bcm2835_correct_order(tbuf[TXCnt]));
+            TXCnt++;
+        }
+        while(((bcm2835_peri_read(paddr) & BCM2835_SPI0_CS_RXD))&&( RXCnt < len ))
+        {
+            rbuf[RXCnt] = bcm2835_correct_order(bcm2835_peri_read_nb(fifo));
+            RXCnt++;
+        }
+    }
+    while (!(bcm2835_peri_read_nb(paddr) & BCM2835_SPI0_CS_DONE))
+        ;
+
+    bcm2835_peri_set_bits(paddr, 0, BCM2835_SPI0_CS_TA);
 }
 
 int bcm2835_aux_spi_begin(void)
@@ -2025,6 +2114,7 @@ int bcm2835_init(void)
 	bcm2835_st   = bcm2835_peripherals + BCM2835_ST_BASE/4;
 	bcm2835_aux  = bcm2835_peripherals + BCM2835_AUX_BASE/4;
 	bcm2835_spi1 = bcm2835_peripherals + BCM2835_SPI1_BASE/4;
+	bcm2835_spi6 = bcm2835_peripherals + BCM2835_SPI6_BASE/4;
         /* BEB */
 	bcm2835_smi  = bcm2835_peripherals + BCM2835_SMI_BASE/4;
 
@@ -2124,6 +2214,7 @@ int bcm2835_init(void)
       bcm2835_st   = bcm2835_peripherals + BCM2835_ST_BASE/4;
       bcm2835_aux  = bcm2835_peripherals + BCM2835_AUX_BASE/4;
       bcm2835_spi1 = bcm2835_peripherals + BCM2835_SPI1_BASE/4;
+      bcm2835_spi6 = bcm2835_peripherals + BCM2835_SPI6_BASE/4;
       /* BEB */
       bcm2835_smi  = bcm2835_peripherals + BCM2835_SMI_BASE/4;
 
@@ -2176,6 +2267,7 @@ int bcm2835_close(void)
     bcm2835_st   = MAP_FAILED;
     bcm2835_aux  = MAP_FAILED;
     bcm2835_spi1 = MAP_FAILED;
+    bcm2835_spi6 = MAP_FAILED;
     /* BEB */
     bcm2835_smi = MAP_FAILED;
 
