@@ -85,6 +85,5 @@ utility/spi_test_master.c
 utility/osd.c
 
 # Local baseline snapshot (old version copy)
-flexi-ninja/
 FLEXI_HAL_PRO_Schematic_A3_FULL_PLACE.PDF
 Pinout.jpg
