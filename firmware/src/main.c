@@ -508,6 +508,7 @@ int main() {
         sm = stepgen_pio[i].sm;
         pio_gpio_init(pio, stepgen_config[i].step_pin);
         gpio_init(stepgen_config[i].dir_pin);
+        gpio_set_dir(stepgen_config[i].dir_pin, GPIO_OUT);
         if (stepgen_config[i].invert){
            gpio_set_outover(stepgen_config[i].step_pin, GPIO_OVERRIDE_INVERT);
         }
