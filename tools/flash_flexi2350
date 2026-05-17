@@ -1,0 +1,236 @@
+#!/bin/bash
+
+set -e
+
+DEFAULT_TCL_DIR="/usr/local/share/openocd/scripts"
+DEFAULT_RP2040_ELF="/home/expatria/flexi-ninja/builds/FlexGPIO/FlexGPIO.elf"
+DEFAULT_RP2350_ELF="/home/expatria/flexi-ninja/builds/flexi-ninja-spi.elf"
+MODE="both"
+NUKE_MODE=false
+USER_ELF=""
+TCL_DIR="$DEFAULT_TCL_DIR"
+
+usage() {
+    cat <<EOF
+Flash RP2040 and/or RP2350 firmware over SWD via Raspberry Pi GPIO header.
+
+Usage: $(basename "$0") [options]
+
+Options:
+  -e, --elf <path>    Firmware ELF for the selected target (defaults per target below)
+  -s, --tcl <dir>     OpenOCD TCL scripts directory (default: $DEFAULT_TCL_DIR)
+  --rp2350            Flash RP2350 only
+  --rp2040            Flash RP2040 only
+  --nuke              Flash flash_nuke to both targets (wipes flash)
+  -h, --help          Show this help
+
+Default (no --rp2350/--rp2040) flashes RP2040 first, then RP2350.
+
+Default firmware paths:
+  RP2040: $DEFAULT_RP2040_ELF
+  RP2350: $DEFAULT_RP2350_ELF
+
+GPIO mapping:
+  RP2040:  SWDIO = GPIO6 (pin 31), SWCLK = GPIO13 (pin 33)
+  RP2350:  SWDIO = GPIO23 (pin 16), SWCLK = GPIO24 (pin 18)
+  Both:    GND = any GND (e.g. pin 14 or 20)
+EOF
+    exit 0
+}
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -e|--elf) USER_ELF="$2"; shift 2 ;;
+        -s|--tcl) TCL_DIR="$2"; shift 2 ;;
+        --rp2350) MODE="rp2350"; shift ;;
+        --rp2040) MODE="rp2040"; shift ;;
+        --nuke) NUKE_MODE=true; shift ;;
+        -h|--help) usage ;;
+        *) echo "Unknown option: $1"; usage ;;
+    esac
+done
+
+# Resolve firmware paths per target
+if $NUKE_MODE; then
+    RP2040_ELF="/home/expatria/flexi-ninja/builds/flash_nuke/flash_nuke_2040.elf"
+    RP2350_ELF="/home/expatria/flexi-ninja/builds/flash_nuke/flash_nuke_2350.elf"
+elif [[ -n "$USER_ELF" ]]; then
+    if [[ $MODE == "both" ]]; then
+        echo "Error: -e/--elf requires --rp2040 or --rp2350 to specify which target"
+        exit 1
+    elif [[ $MODE == "rp2040" ]]; then
+        RP2040_ELF="$USER_ELF"
+        RP2350_ELF="$DEFAULT_RP2350_ELF"
+    else
+        RP2040_ELF="$DEFAULT_RP2040_ELF"
+        RP2350_ELF="$USER_ELF"
+    fi
+else
+    RP2040_ELF="$DEFAULT_RP2040_ELF"
+    RP2350_ELF="$DEFAULT_RP2350_ELF"
+fi
+
+TCL_DIR=$(realpath "$TCL_DIR")
+
+if [[ $EUID -ne 0 ]]; then
+    echo "Error: must be run as root (needs /dev/mem or /dev/gpiochip* access)"
+    exit 1
+fi
+
+if ! command -v openocd &> /dev/null; then
+    echo "Error: openocd not found. Install it first."
+    exit 1
+fi
+
+if ! command -v readelf &> /dev/null; then
+    echo "Error: readelf not found (install binutils)."
+    exit 1
+fi
+
+if [[ ! -d "$TCL_DIR" ]]; then
+    echo "Error: OpenOCD TCL directory not found: $TCL_DIR"
+    exit 1
+fi
+
+if [[ $MODE == "both" || $MODE == "rp2040" ]]; then
+    if [[ ! -f "$TCL_DIR/target/rp2040.cfg" ]]; then
+        echo "Error: target/rp2040.cfg not found in $TCL_DIR"
+        exit 1
+    fi
+fi
+if [[ $MODE == "both" || $MODE == "rp2350" ]]; then
+    if [[ ! -f "$TCL_DIR/target/rp2350.cfg" ]]; then
+        echo "Error: target/rp2350.cfg not found in $TCL_DIR"
+        exit 1
+    fi
+fi
+
+detect_platform() {
+    local hex base peri
+    if command -v xxd &>/dev/null; then
+        hex=$(xxd -p -l 16 /proc/device-tree/soc/ranges 2>/dev/null)
+    else
+        hex=$(od -A n -t x1 -N 16 /proc/device-tree/soc/ranges 2>/dev/null | tr -d ' \n')
+    fi
+    hex=${hex%%$'\n'*}
+    if [[ ${#hex} -lt 16 ]]; then
+        echo "unknown"
+        return
+    fi
+
+    base=$((16#${hex:8:8}))
+    peri=$((16#${hex:16:8}))
+
+    if [[ $base -eq 0 ]]; then
+        base=$((16#${hex:16:8}))
+        peri=$((16#${hex:24:8}))
+    fi
+
+    if [[ $base -eq 0xFE000000 ]]; then
+        echo "pi4"
+    elif [[ $peri -eq 0x7C000000 ]]; then
+        echo "pi5"
+    else
+        echo "unknown"
+    fi
+}
+
+flash_target() {
+    local firmware="$1"
+    local target_cfg="$2"
+    local swdio="$3"
+    local swclk="$4"
+    local label="$5"
+
+    echo ""
+    echo "--- Flashing $label ($target_cfg, SWDIO=$swdio SWCLK=$swclk) ---"
+    echo "Firmware: $firmware"
+
+    if [[ ! -f "$firmware" ]]; then
+        echo "Error: firmware not found: $firmware"
+        exit 1
+    fi
+
+    if $NUKE_MODE; then
+        local entry
+        entry=$(readelf -h "$firmware" 2>/dev/null | awk '/Entry point/ {print $4}')
+        if [[ -z "$entry" ]]; then
+            echo "Error: could not parse entry point from ELF"
+            exit 1
+        fi
+        echo "Entry point: $entry"
+    fi
+
+    case "$PLATFORM" in
+        pi4)
+            if $NUKE_MODE; then
+                openocd -s "$TCL_DIR" \
+                    -f "interface/raspberrypi-native.cfg" \
+                    -c "transport select swd" \
+                    -c "adapter gpio swdio -chip 0 $swdio" \
+                    -c "adapter gpio swclk -chip 0 $swclk" \
+                    -c "adapter speed 1000" \
+                    -f "$target_cfg" \
+                    -c "init" \
+                    -c "load_image $firmware" \
+                    -c "resume $entry" \
+                    -c "shutdown"
+            else
+                openocd -s "$TCL_DIR" \
+                    -f "interface/raspberrypi-native.cfg" \
+                    -c "transport select swd" \
+                    -c "adapter gpio swdio -chip 0 $swdio" \
+                    -c "adapter gpio swclk -chip 0 $swclk" \
+                    -c "adapter speed 1000" \
+                    -f "$target_cfg" \
+                    -c "program $firmware verify reset exit"
+            fi
+            ;;
+        pi5)
+            if $NUKE_MODE; then
+                openocd -s "$TCL_DIR" \
+                    -f "interface/raspberrypi5-gpiod.cfg" \
+                    -c "transport select swd" \
+                    -c "adapter gpio swdio -chip \$_GPIO_CHIP $swdio" \
+                    -c "adapter gpio swclk -chip \$_GPIO_CHIP $swclk" \
+                    -c "adapter speed 1000" \
+                    -f "$target_cfg" \
+                    -c "init" \
+                    -c "load_image $firmware" \
+                    -c "resume $entry" \
+                    -c "shutdown"
+            else
+                openocd -s "$TCL_DIR" \
+                    -f "interface/raspberrypi5-gpiod.cfg" \
+                    -c "transport select swd" \
+                    -c "adapter gpio swdio -chip \$_GPIO_CHIP $swdio" \
+                    -c "adapter gpio swclk -chip \$_GPIO_CHIP $swclk" \
+                    -c "adapter speed 1000" \
+                    -f "$target_cfg" \
+                    -c "program $firmware verify reset exit"
+            fi
+            ;;
+    esac
+}
+
+PLATFORM=$(detect_platform)
+if [[ $PLATFORM == "unknown" ]]; then
+    echo "Error: unknown platform. Only Pi 4 (BCM2711) and Pi 5 (BCM2712) are supported."
+    exit 1
+fi
+
+echo "Platform: $PLATFORM"
+echo "Mode: $MODE"
+echo "OpenOCD TCL: $TCL_DIR"
+echo ""
+
+if [[ $MODE == "both" || $MODE == "rp2040" ]]; then
+    flash_target "$RP2040_ELF" "target/rp2040.cfg" 6 13 "RP2040 (FlexGPIO)"
+fi
+
+if [[ $MODE == "both" || $MODE == "rp2350" ]]; then
+    flash_target "$RP2350_ELF" "target/rp2350.cfg" 23 24 "RP2350 (stepper-ninja)"
+fi
+
+echo ""
+echo "Done."
