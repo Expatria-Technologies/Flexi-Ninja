@@ -20,7 +20,6 @@ hal-driver/build-cmake/
 *.so
 *.dll
 *.dylib
-*.elf
 *.hex
 *.bin
 *.uf2

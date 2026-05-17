@@ -17,6 +17,15 @@
 #include "bcm2835.c"
 #include "bcm2835rt.h"
 
+/* RP1 support (Raspberry Pi 5) */
+#include "rp1lib.c"
+#include "gpiochip_rp1.c"
+#include "spi-dw.c"
+
+static int bcm = 1;
+static int rp1 = 0;
+#define RPI5_RP1_PERI_BASE 0x7c000000
+
 /* name of the module */
 #ifndef MODULE_NAME
     #define MODULE_NAME "flexi-ninja"
@@ -30,7 +39,7 @@
 #define raspi_int_out 22
 
 static int spi_bus = 6;
-RTAPI_MP_INT(spi_bus, "SPI bus number (0=SPI0, 1=SPI1 on GPIOs 16,19,20,21, 6=SPI6 on GPIOs 19,20,21 CE1 GPIO27)");
+RTAPI_MP_INT(spi_bus, "SPI bus number (0=SPI0, 1=SPI1 on GPIOs 16,19,20,21, 6=SPI6 on GPIOs 19,20,21 CE1 GPIO27; on Pi5 spi_bus=6 maps to RP1 SPI1 with same pinout)");
 
 #define debug 1
 
@@ -275,40 +284,129 @@ static void module_init(void)
     #endif
 }
 
+static void rt_peripheral_init(void)
+{
+    FILE *fp;
+
+    if ((fp = fopen("/proc/device-tree/soc/ranges", "rb")))
+    {
+        unsigned char buf[16];
+        uint32_t base_address = 0;
+        uint32_t peri_size = 0;
+        if (fread(buf, 1, sizeof(buf), fp) >= 8)
+        {
+            base_address = (buf[4] << 24) |
+                (buf[5] << 16) |
+                (buf[6] << 8) |
+                (buf[7] << 0);
+
+            peri_size = (buf[8] << 24) |
+                (buf[9] << 16) |
+                (buf[10] << 8) |
+                (buf[11] << 0);
+
+            if (!base_address)
+            {
+                base_address = (buf[8] << 24) |
+                    (buf[9] << 16) |
+                    (buf[10] << 8) |
+                    (buf[11] << 0);
+
+                peri_size = (buf[12] << 24) |
+                    (buf[13] << 16) |
+                    (buf[14] << 8) |
+                    (buf[15] << 0);
+            }
+        }
+
+        if (base_address == BCM2835_RPI4_PERI_BASE)
+        {
+            bcm = 1;
+            rp1 = 0;
+            rtapi_print_msg(RTAPI_MSG_INFO, module_name ": detected Raspberry Pi 4 (peri_base 0x%08x), using BCM2835 driver\n", base_address);
+        }
+        else if (peri_size == RPI5_RP1_PERI_BASE)
+        {
+            bcm = 0;
+            rp1 = 1;
+            rtapi_print_msg(RTAPI_MSG_INFO, module_name ": detected Raspberry Pi 5 (RP1 at 0x%08x), using RP1 driver\n", RPI5_RP1_PERI_BASE);
+        }
+        else
+        {
+            rtapi_print_msg(RTAPI_MSG_WARN, module_name ": unknown platform (base 0x%08x, peri_size 0x%08x), assuming BCM2711\n", base_address, peri_size);
+        }
+
+        fclose(fp);
+    }
+}
+
 static void init_spi(void)
 {
     if (!bcm2835_init_rt()) {
-        rtapi_print_msg(RTAPI_MSG_ERR,	"bcm2835 init failed\n");
+        rtapi_print_msg(RTAPI_MSG_ERR, "bcm2835 init failed\n");
         return;
     }
 
-    rtapi_print_msg(RTAPI_MSG_INFO, module_name ": resetting RP2350 via GPIO17 (100ms pulse)\n");
-    bcm2835_gpio_fsel(17, BCM2835_GPIO_FSEL_OUTP);
-    bcm2835_gpio_clr(17);
-    rtapi_print_msg(RTAPI_MSG_INFO, module_name ": GPIO17 held low, waiting 100ms\n");
-    bcm2835_delay(100);
-    bcm2835_gpio_set(17);
-    rtapi_print_msg(RTAPI_MSG_INFO, module_name ": GPIO17 released high, waiting 2s for RP2350 to boot\n");
-    bcm2835_delay(2000);
+    rt_peripheral_init();
 
-    if (spi_bus == 6) {
-        rtapi_print_msg(RTAPI_MSG_INFO, module_name ": using SPI6 on GPIOs 19,20,21 CE1 GPIO27\n");
-        bcm2835_spi6_begin();
-        bcm2835_spi6_setClockDivider(SPI_SPEED);
-        bcm2835_spi6_setDataMode(BCM2835_SPI_MODE3);
-        bcm2835_spi6_chipSelect(BCM2835_SPI_CS1);
-        bcm2835_spi6_setChipSelectPolarity(BCM2835_SPI_CS1, LOW);
-    } else {
-        bcm2835_spi_begin();
-        bcm2835_spi_setBitOrder(BCM2835_SPI_BIT_ORDER_MSBFIRST);
-        bcm2835_spi_setDataMode(BCM2835_SPI_MODE3);
-        bcm2835_spi_setClockDivider(SPI_SPEED);
-        bcm2835_spi_chipSelect(BCM2835_SPI_CS0);
-        bcm2835_spi_setChipSelectPolarity(BCM2835_SPI_CS0, LOW);
+    if (rp1) {
+        if (!rt_rp1lib_init()) {
+            rtapi_print_msg(RTAPI_MSG_ERR, module_name ": rt_rp1lib_init failed\n");
+            return;
+        }
     }
 
-    bcm2835_gpio_fsel(raspi_int_out, BCM2835_GPIO_FSEL_OUTP);
-    bcm2835_gpio_set(raspi_int_out);
+    rtapi_print_msg(RTAPI_MSG_INFO, module_name ": resetting RP2350 via GPIO17 (100ms pulse)\n");
+    if (rp1) {
+        gpio_set_fsel(17, GPIO_FSEL_OUTPUT);
+        gpio_clear(17);
+    } else {
+        bcm2835_gpio_fsel(17, BCM2835_GPIO_FSEL_OUTP);
+        bcm2835_gpio_clr(17);
+    }
+    rtapi_print_msg(RTAPI_MSG_INFO, module_name ": GPIO17 held low, waiting 100ms\n");
+    bcm2835_delay(100);
+    if (rp1) {
+        gpio_set(17);
+    } else {
+        bcm2835_gpio_set(17);
+    }
+    rtapi_print_msg(RTAPI_MSG_INFO, module_name ": GPIO17 released high, waiting 4s for RP2350 to boot\n");
+    bcm2835_delay(4000);
+
+    if (spi_bus == 6) {
+        if (rp1) {
+            rtapi_print_msg(RTAPI_MSG_INFO, module_name ": using RP1 SPI1 on GPIOs 19,20,21 CE1 GPIO27\n");
+            rp1spi_init(1, 1, SPI_MODE_3, 8300000);
+        } else {
+            rtapi_print_msg(RTAPI_MSG_INFO, module_name ": using SPI6 on GPIOs 19,20,21 CE1 GPIO27\n");
+            bcm2835_spi6_begin();
+            bcm2835_spi6_setClockDivider(SPI_SPEED);
+            bcm2835_spi6_setDataMode(BCM2835_SPI_MODE3);
+            bcm2835_spi6_chipSelect(BCM2835_SPI_CS1);
+            bcm2835_spi6_setChipSelectPolarity(BCM2835_SPI_CS1, LOW);
+        }
+    } else {
+        if (rp1) {
+            rtapi_print_msg(RTAPI_MSG_INFO, module_name ": using RP1 SPI0 on GPIOs 19,21,23,24\n");
+            rp1spi_init(0, 0, SPI_MODE_3, 8300000);
+        } else {
+            bcm2835_spi_begin();
+            bcm2835_spi_setBitOrder(BCM2835_SPI_BIT_ORDER_MSBFIRST);
+            bcm2835_spi_setDataMode(BCM2835_SPI_MODE3);
+            bcm2835_spi_setClockDivider(SPI_SPEED);
+            bcm2835_spi_chipSelect(BCM2835_SPI_CS0);
+            bcm2835_spi_setChipSelectPolarity(BCM2835_SPI_CS0, LOW);
+        }
+    }
+
+    if (rp1) {
+        gpio_set_fsel(raspi_int_out, GPIO_FSEL_OUTPUT);
+        gpio_set(raspi_int_out);
+    } else {
+        bcm2835_gpio_fsel(raspi_int_out, BCM2835_GPIO_FSEL_OUTP);
+        bcm2835_gpio_set(raspi_int_out);
+    }
 }
 
 void watchdog_process(void *arg, long period)
@@ -499,18 +597,28 @@ static int _receive(void *arg)
 
 static int _send(void *arg)
 {
-    bcm2835_gpio_clr(raspi_int_out);
+    if (rp1) {
+        gpio_clear(raspi_int_out);
+    } else {
+        bcm2835_gpio_clr(raspi_int_out);
+    }
     usleep(50);
     memset(spi_tx_buffer, 0, sizeof(spi_tx_buffer));
     memset(spi_rx_buffer, 0, sizeof(spi_rx_buffer));
     memcpy(spi_tx_buffer, tx_buffer, tx_size);
-    if (spi_bus == 6) {
+    if (rp1) {
+        rp1spi_transfer((spi_bus == 6) ? 1 : 0, (char *)spi_tx_buffer, (char *)spi_rx_buffer, SPI_TRANSFER_SIZE);
+    } else if (spi_bus == 6) {
         bcm2835_spi6_transfernb((char *)spi_tx_buffer, (char *)spi_rx_buffer, SPI_TRANSFER_SIZE);
     } else {
         bcm2835_spi_transfernb((char *)spi_tx_buffer, (char *)spi_rx_buffer, SPI_TRANSFER_SIZE);
     }
     memcpy(rx_buffer, spi_rx_buffer, rx_size);
-    bcm2835_gpio_set(raspi_int_out);
+    if (rp1) {
+        gpio_set(raspi_int_out);
+    } else {
+        bcm2835_gpio_set(raspi_int_out);
+    }
     return rx_size;
 }
 
@@ -979,11 +1087,15 @@ void rtapi_app_exit(void)
     for (int i = 0; i < instances; i++) {
         rtapi_print_msg(RTAPI_MSG_INFO, module_name ".%d: Exiting component\n", i);
     }
-    if (spi_bus == 6) {
-        bcm2835_spi6_end();
+    if (rp1) {
+        rp1lib_deinit();
     } else {
-        bcm2835_spi_end();
+        if (spi_bus == 6) {
+            bcm2835_spi6_end();
+        } else {
+            bcm2835_spi_end();
+        }
+        bcm2835_close();
     }
-    bcm2835_close();
     hal_exit(comp_id);
 }
