@@ -985,12 +985,13 @@ int rtapi_app_main(void)
         #endif
 
         #if use_pwm == 1
+            const PwmPin pwm_pin_cfg[pwm_count] = PWM_PINS;
             for (int i = 0; i < pwm_count; ++i) {
-                PIN_BIT_INIT(&hal_data[j].pwm_enable[i], HAL_IN, 0, "%s.pwm.%d.enable", prefix, i);
-                PIN_U32(&hal_data[j].pwm_output[i], HAL_IN, "%s.pwm.%d.duty", prefix, i);
-                PIN_U32_INIT(&hal_data[j].pwm_frequency[i], HAL_IN, default_pwm_frequency, "%s.pwm.%d.frequency", prefix, i);
-                PIN_U32_INIT(&hal_data[j].pwm_min_limit[i], HAL_IN, 0, "%s.pwm.%d.min-limit", prefix, i);
-                PIN_U32_INIT(&hal_data[j].pwm_maxscale[i], HAL_IN, default_pwm_maxscale, "%s.pwm.%d.max-scale", prefix, i);
+                PIN_BIT_INIT(&hal_data[j].pwm_enable[i], HAL_IN, 0, "%s.%s.enable", prefix, pwm_pin_cfg[i].name);
+                PIN_U32(&hal_data[j].pwm_output[i], HAL_IN, "%s.%s.duty", prefix, pwm_pin_cfg[i].name);
+                PIN_U32_INIT(&hal_data[j].pwm_frequency[i], HAL_IN, default_pwm_frequency, "%s.%s.frequency", prefix, pwm_pin_cfg[i].name);
+                PIN_U32_INIT(&hal_data[j].pwm_min_limit[i], HAL_IN, 0, "%s.%s.min-limit", prefix, pwm_pin_cfg[i].name);
+                PIN_U32_INIT(&hal_data[j].pwm_maxscale[i], HAL_IN, default_pwm_maxscale, "%s.%s.max-scale", prefix, pwm_pin_cfg[i].name);
             }
         #endif
 
