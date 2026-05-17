@@ -135,6 +135,17 @@ detect_platform() {
     fi
 }
 
+get_rp1_gpio_base() {
+    for chipdir in /sys/class/gpio/gpiochip*/; do
+        local label
+        label=$(cat "${chipdir}label" 2>/dev/null)
+        if [[ "$label" == *rp1* || "$label" == *RP1* ]]; then
+            cat "${chipdir}base" 2>/dev/null
+            return
+        fi
+    done
+}
+
 flash_target() {
     local firmware="$1"
     local target_cfg="$2"
@@ -172,6 +183,7 @@ flash_target() {
                     -c "adapter speed 1000" \
                     -f "$target_cfg" \
                     -c "init" \
+                    -c "halt" \
                     -c "load_image $firmware" \
                     -c "resume $entry" \
                     -c "shutdown"
@@ -187,24 +199,27 @@ flash_target() {
             fi
             ;;
         pi5)
+            local swdio_g=$((RP1_GPIO_BASE + swdio))
+            local swclk_g=$((RP1_GPIO_BASE + swclk))
             if $NUKE_MODE; then
                 openocd -s "$TCL_DIR" \
-                    -f "interface/raspberrypi5-gpiod.cfg" \
+                    -c "adapter driver sysfsgpio" \
+                    -c "sysfsgpio swclk_num $swclk_g" \
+                    -c "sysfsgpio swdio_num $swdio_g" \
                     -c "transport select swd" \
-                    -c "adapter gpio swdio -chip \$_GPIO_CHIP $swdio" \
-                    -c "adapter gpio swclk -chip \$_GPIO_CHIP $swclk" \
                     -c "adapter speed 1000" \
                     -f "$target_cfg" \
                     -c "init" \
+                    -c "halt" \
                     -c "load_image $firmware" \
                     -c "resume $entry" \
                     -c "shutdown"
             else
                 openocd -s "$TCL_DIR" \
-                    -f "interface/raspberrypi5-gpiod.cfg" \
+                    -c "adapter driver sysfsgpio" \
+                    -c "sysfsgpio swclk_num $swclk_g" \
+                    -c "sysfsgpio swdio_num $swdio_g" \
                     -c "transport select swd" \
-                    -c "adapter gpio swdio -chip \$_GPIO_CHIP $swdio" \
-                    -c "adapter gpio swclk -chip \$_GPIO_CHIP $swclk" \
                     -c "adapter speed 1000" \
                     -f "$target_cfg" \
                     -c "program $firmware verify reset exit"
@@ -222,6 +237,16 @@ fi
 echo "Platform: $PLATFORM"
 echo "Mode: $MODE"
 echo "OpenOCD TCL: $TCL_DIR"
+
+if [[ $PLATFORM == "pi5" ]]; then
+    RP1_GPIO_BASE=$(get_rp1_gpio_base)
+    if [[ -z "$RP1_GPIO_BASE" ]]; then
+        echo "Error: could not find RP1 gpiochip"
+        exit 1
+    fi
+    echo "RP1 gpio base: $RP1_GPIO_BASE"
+fi
+
 echo ""
 
 if [[ $MODE == "both" || $MODE == "rp2040" ]]; then
