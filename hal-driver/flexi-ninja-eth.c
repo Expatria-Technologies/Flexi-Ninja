@@ -30,6 +30,7 @@ char *ip_address;
 RTAPI_MP_STRING(ip_address, "Ip address");
 
 #define debug 1
+#define PROBE_SELECT_BIT 31
 
 #include "hal_pin_macros.h"
 
@@ -163,7 +164,6 @@ typedef struct {
     uint8_t checksum_error;
     float enc_prev_pos[encoders];
     uint32_t enc_timestamp[encoders];
-    int32_t enc_offset[encoders];
     uint32_t delta_time[encoders];
     int64_t prev_pos[6];
     int64_t curr_pos[6];
@@ -300,7 +300,10 @@ static void init_socket(module_data_t *arg)
     if (bind(d->sockfd, (struct sockaddr *)&d->local_addr, sizeof(d->local_addr)) < 0) {
         rtapi_print_msg(RTAPI_MSG_ERR, module_name ".%d: bind failed: %s\n",
             d->index, strerror(errno));
-        close(d->sockfd);
+        if (close(d->sockfd) < 0) {
+            rtapi_print_msg(RTAPI_MSG_ERR, module_name ".%d: close failed after bind error: %s\n",
+                d->index, strerror(errno));
+        }
         d->sockfd = -1;
         return;
     }
@@ -313,7 +316,10 @@ static void init_socket(module_data_t *arg)
     if (inet_pton(AF_INET, d->ip_address->ip, &d->remote_addr.sin_addr) <= 0) {
         rtapi_print_msg(RTAPI_MSG_ERR, module_name ".%d: invalid IP address: %s\n",
             d->index, d->ip_address->ip);
-        close(d->sockfd);
+        if (close(d->sockfd) < 0) {
+            rtapi_print_msg(RTAPI_MSG_ERR, module_name ".%d: close failed after IP error: %s\n",
+                d->index, strerror(errno));
+        }
         d->sockfd = -1;
         return;
     }
@@ -504,7 +510,7 @@ static void bb_hal_process_send(module_data_t *d)
         }
     }
 
-    if (*d->probe_select) outs0 |= (1u << 31);
+    if (*d->probe_select) outs0 |= (1u << PROBE_SELECT_BIT);
 
     tx_buffer->outputs[0] = outs0;
     tx_buffer->outputs[1] = outs1;
@@ -575,7 +581,6 @@ void udp_io_process_recv(void *arg, long period)
             for (uint8_t i = 0; i < encoders; i++) {
                 #if debug == 1
                     if (*d->enc_reset[i] == 1) {
-                        d->enc_offset[i] = rx_buffer->encoder_counter[i];
                         *d->enc_reset[i] = 0;
                     }
                 #endif
@@ -986,7 +991,6 @@ int rtapi_app_main(void)
             #else
                 #define e_name ".encoder"
             #endif
-            hal_data[j].enc_offset[i] = 0;
             PIN_S32(&hal_data[j].raw_count[i], HAL_OUT, "%s" e_name ".%s.raw-count", prefix, encoder_config[i].name);
             PIN_FLOAT(&hal_data[j].enc_position[i], HAL_OUT, "%s" e_name ".%s.position", prefix, encoder_config[i].name);
             PIN_FLOAT_INIT(&hal_data[j].enc_scale[i], HAL_IN, 1, "%s" e_name ".%s.scale", prefix, encoder_config[i].name);
@@ -1056,7 +1060,7 @@ void rtapi_app_exit(void)
     if (hal_data == NULL) return;
     for (int i = 0; i < instances; i++) {
         rtapi_print_msg(RTAPI_MSG_INFO, module_name ".%d: Exiting component\n", i);
-        close(hal_data[i].sockfd);
+        if (hal_data[i].sockfd >= 0) close(hal_data[i].sockfd);
     }
     hal_exit(comp_id);
     free(rx_buffer);

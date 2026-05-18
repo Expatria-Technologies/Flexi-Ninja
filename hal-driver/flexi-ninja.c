@@ -42,6 +42,7 @@ static int spi_bus = 6;
 RTAPI_MP_INT(spi_bus, "SPI bus number (0=SPI0, 1=SPI1 on GPIOs 16,19,20,21, 6=SPI6 on GPIOs 19,20,21 CE1 GPIO27; on Pi5 spi_bus=6 maps to RP1 SPI1 with same pinout)");
 
 #define debug 1
+#define PROBE_SELECT_BIT 31
 
 #include "hal_pin_macros.h"
 
@@ -168,7 +169,6 @@ typedef struct {
     uint8_t checksum_error;
     float enc_prev_pos[encoders];
     uint32_t enc_timestamp[encoders];
-    int32_t enc_offset[encoders];
     uint32_t delta_time[encoders];
     int64_t prev_pos[6];
     int64_t curr_pos[6];
@@ -334,7 +334,8 @@ static void rt_peripheral_init(void)
         }
         else
         {
-            rtapi_print_msg(RTAPI_MSG_WARN, module_name ": unknown platform (base 0x%08x, peri_size 0x%08x), assuming BCM2711\n", base_address, peri_size);
+            rtapi_print_msg(RTAPI_MSG_ERR, module_name ": unknown platform (base 0x%08x, peri_size 0x%08x)\n", base_address, peri_size);
+            return;
         }
 
         fclose(fp);
@@ -489,7 +490,11 @@ static int bb_hal_setup_pins(module_data_t *d, int j, int comp_id,
     }
 
     char prefix[64];
-    snprintf(prefix, sizeof(prefix), instances > 1 ? module_name ".%d" : module_name, j);
+    if (instances > 1) {
+        snprintf(prefix, sizeof(prefix), module_name ".%d", j);
+    } else {
+        snprintf(prefix, sizeof(prefix), "%s", module_name);
+    }
 
     for (int i = 0; i < in_pins_no; i++) {
         memset(name, 0, nsize);
@@ -595,7 +600,7 @@ static void bb_hal_process_send(module_data_t *d)
         }
     }
 
-    if (*d->probe_select) outs0 |= (1u << 31);
+    if (*d->probe_select) outs0 |= (1u << PROBE_SELECT_BIT);
 
     tx_buffer->outputs[0] = outs0;
     tx_buffer->outputs[1] = outs1;
@@ -690,7 +695,6 @@ void udp_io_process_recv(void *arg, long period)
                 if (*d->enc_scale[i] < 1.0f) *d->enc_scale[i] = 1.0f;
                 #if debug == 1
                     if (*d->enc_reset[i] == 1) {
-                        d->enc_offset[i] = rx_buffer->encoder_counter[i];
                         *d->enc_reset[i] = 0;
                     }
                 #endif
@@ -830,7 +834,7 @@ static void udp_io_process_send(void *arg, long period)
                     }
                 }
                 #endif
-                steps = abs(steps);
+                if (steps < 0) steps = -steps;
                 if (steps < 0) steps = 1023;
                 if (steps > 1023) steps = 1023;
 
@@ -966,7 +970,11 @@ int rtapi_app_main(void)
 
         uint32_t nsize = sizeof(name);
         char prefix[64];
-        snprintf(prefix, sizeof(prefix), instances > 1 ? module_name ".%d" : module_name, j);
+    if (instances > 1) {
+        snprintf(prefix, sizeof(prefix), module_name ".%d", j);
+    } else {
+        snprintf(prefix, sizeof(prefix), "%s", module_name);
+    }
         PIN_BIT_INIT(&hal_data[j].probe_select, HAL_IN, 0, "%s.probe-select", prefix);
         PIN_BIT(&hal_data[j].connected, HAL_IN, "%s.connected", prefix);
 
@@ -1035,7 +1043,6 @@ int rtapi_app_main(void)
             #else
                 #define e_name ".encoder"
             #endif
-            hal_data[j].enc_offset[i] = 0;
             PIN_S32(&hal_data[j].raw_count[i], HAL_OUT, "%s" e_name ".%s.raw-count", prefix, encoder_config[i].name);
             PIN_FLOAT(&hal_data[j].enc_position[i], HAL_OUT, "%s" e_name ".%s.position", prefix, encoder_config[i].name);
             PIN_FLOAT_INIT(&hal_data[j].enc_scale[i], HAL_IN, 1, "%s" e_name ".%s.scale", prefix, encoder_config[i].name);
