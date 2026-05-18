@@ -345,21 +345,22 @@ void watchdog_process(void *arg, long period)
 }
 
 #if stepgens > 0
-static uint16_t nearest(uint16_t period)
+#define PIO_SETTINGS_COUNT (sizeof(pio_settings) / sizeof(pio_settings[0]))
+static uint16_t nearest(uint32_t period)
 {
     uint16_t min_diff = 65535;
-    uint16_t value = (uint16_t)period / cycle_time_ns;
+    uint16_t value = (uint16_t)(period / cycle_time_ns);
     int16_t calc = 0;
     uint16_t index = 0;
 
     if (value < pio_settings[0].high_cycles) {
         return 0;
     }
-    if (value > pio_settings[298].high_cycles) {
-        return 298;
+    if (value > pio_settings[PIO_SETTINGS_COUNT - 1].high_cycles) {
+        return PIO_SETTINGS_COUNT - 1;
     }
 
-    for (uint16_t i = 0; i < 299; i++) {
+    for (uint16_t i = 0; i < PIO_SETTINGS_COUNT; i++) {
         calc = abs((int)pio_settings[i].high_cycles - (int)value);
         if (calc < min_diff) {
             min_diff = calc;
@@ -388,6 +389,14 @@ static int bb_hal_setup_pins(module_data_t *d, int j, int comp_id,
                              char *name, uint32_t nsize)
 {
     int r;
+    if (in_pins_no > 96) {
+        rtapi_print_msg(RTAPI_MSG_ERR, module_name ".%d: in_pins_no (%d) exceeds max 96\n", j, in_pins_no);
+        return -1;
+    }
+    if (out_pins_no > 64) {
+        rtapi_print_msg(RTAPI_MSG_ERR, module_name ".%d: out_pins_no (%d) exceeds max 64\n", j, out_pins_no);
+        return -1;
+    }
     char prefix[64];
     snprintf(prefix, sizeof(prefix), instances > 1 ? module_name ".%d" : module_name, j);
 
@@ -501,11 +510,6 @@ static void bb_hal_process_send(module_data_t *d)
     tx_buffer->outputs[1] = outs1;
 }
 // ===========================================================
-
-static int _receive(void *arg)
-{
-    return sizeof(transmission_pico_pc_t);
-}
 
 static int _send(void *arg)
 {
@@ -679,7 +683,7 @@ static void udp_io_process_send(void *arg, long period)
             total_cycles = (uint32_t)((period * (pico_clock / 1000)) / 1000000UL);
             uint16_t pio_index = nearest(*d->pulse_width);
             rtapi_print_msg(RTAPI_MSG_INFO, "Max frequency: %.4f KHz\n", max_f / 1000.0);
-            rtapi_print_msg(RTAPI_MSG_INFO, "max pulse_width: %dnS\n", pio_settings[298].high_cycles * (int)cycle_time_ns);
+            rtapi_print_msg(RTAPI_MSG_INFO, "max pulse_width: %dnS\n", pio_settings[PIO_SETTINGS_COUNT - 1].high_cycles * (int)cycle_time_ns);
             rtapi_print_msg(RTAPI_MSG_INFO, "min pulse_width: %dnS\n", pio_settings[0].high_cycles * (int)cycle_time_ns);
             memset(timing, 0, sizeof(timing));
             for (uint16_t i = 1; i < 1024; i++) {
@@ -717,10 +721,6 @@ static void udp_io_process_send(void *arg, long period)
                 if (steps < 0) steps = 1023;
                 if (steps > 1023) steps = 1023;
 
-                if (d->prev_pos[i] < 0 && d->curr_pos[i] > 0) {
-                    steps++;
-                }
-
                 sign = 0;
                 if (d->prev_pos[i] < d->curr_pos[i]) {
                     sign = 1;
@@ -734,7 +734,7 @@ static void udp_io_process_send(void *arg, long period)
             } else {
                 float velocity = *d->command[i];
                 float steps_per_sec = velocity * *d->scale[i];
-                uint8_t sign = (velocity >= 0) ? 1 : 0;
+                sign = (velocity >= 0) ? 1 : 0;
 
                 steps_per_sec = fabs(steps_per_sec);
                 if (steps_per_sec > max_f) {
@@ -773,20 +773,20 @@ static void udp_io_process_send(void *arg, long period)
                 if (*d->pwm_frequency[i] > 1000000) {
                     *d->pwm_frequency[i] = 1000000;
                 }
-                if (*d->pwm_frequency[i] < 1907) {
-                    *d->pwm_frequency[i] = 1907;
+                if (*d->pwm_frequency[i] < 1908) {
+                    *d->pwm_frequency[i] = 1908;
                 }
-                if (*d->pwm_output[i] < *d->pwm_min_limit[i]) {
+                if (*d->pwm_min_limit[i] > 0 && *d->pwm_output[i] < *d->pwm_min_limit[i]) {
                     *d->pwm_output[i] = *d->pwm_min_limit[i];
                 }
                 uint16_t wrap = pwm_calculate_wrap(*d->pwm_frequency[i]);
                 uint16_t duty_cycle = (uint16_t)(round(((float)*d->pwm_output[i] / *d->pwm_maxscale[i]) * wrap));
                 tx_buffer->pwm_duty[i] = duty_cycle;
+                tx_buffer->pwm_frequency[i] = *d->pwm_frequency[i];
             } else {
                 tx_buffer->pwm_duty[i] = 0;
             }
         }
-        tx_buffer->pwm_frequency[i] = *d->pwm_frequency[i];
     }
     #endif
 

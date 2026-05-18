@@ -834,10 +834,6 @@ static void udp_io_process_send(void *arg, long period)
                 if (steps < 0) steps = 1023;
                 if (steps > 1023) steps = 1023;
 
-                if (d->prev_pos[i] < 0 && d->curr_pos[i] > 0) {
-                    steps++;
-                }
-
                 sign = 0;
                 if (d->prev_pos[i] < d->curr_pos[i]) {
                     sign = 1;
