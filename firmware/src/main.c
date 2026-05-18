@@ -271,7 +271,8 @@ void core1_entry() {
                 #ifdef out_pins
                     if (sizeof(output_pins) > 0){
                         for (int i = 0; i < sizeof(output_pins); i++) {
-                            gpio_put(output_pins[i], 0); // reset outputs
+                            if (output_pins[i] != PIN_NULL)
+                                gpio_put(output_pins[i], 0); // reset outputs
                         }
                     }
                 #endif
@@ -455,10 +456,12 @@ int main() {
     #ifdef out_pins
     printf("Output GPIO: ");
     for (int i = 0; i < sizeof(output_pins); i++) {
-        gpio_init(output_pins[i]);
-        gpio_set_dir(output_pins[i], GPIO_OUT);
-        gpio_put(output_pins[i], 0);
-        printf("%d ", output_pins[i]);
+        if (output_pins[i] != PIN_NULL) {
+            gpio_init(output_pins[i]);
+            gpio_set_dir(output_pins[i], GPIO_OUT);
+            gpio_put(output_pins[i], 0);
+            printf("%d ", output_pins[i]);
+        }
     }
     printf("\n");
     #endif
@@ -793,6 +796,7 @@ void handle_data(){
     if (sizeof(output_pins)>0){
         //set output pins
         for (uint8_t i = 0; i < sizeof(output_pins); i++) {
+            if (output_pins[i] == PIN_NULL) continue;
             if (output_pins[i] < 32){
                 gpio_put(output_pins[i], (rx_buffer->outputs[0] >> i) & 1);
             } else {
