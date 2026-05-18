@@ -4,7 +4,7 @@
 #define ENCODER_IDLE_STOP_SAMPLES 2500
 
 // Flexi-Ninja
-// Based on stepper-ninja but Viola Zsolt (atrex66@gmail.com)
+// Based on stepper-ninja by Viola Zsolt (atrex66@gmail.com)
 // License: MIT
 
 
@@ -75,6 +75,7 @@ uint8_t timer_started = 0;
 int alarm_num = -1;
 
 uint8_t checksum_error = 0;
+uint8_t checksum_ok_count = 0;
 uint8_t timeout_error = 1;
 uint32_t last_time = 0;
 absolute_time_t last_packet_time;
@@ -144,7 +145,14 @@ static inline void __time_critical_func(apply_stepgen_commands)(const uint32_t *
         uint32_t command_word = step_commands[i];
         if (command_word != 0){
             gpio_put(stepgen_config[i].dir_pin, (command_word >> 31));
-            pio_sm_put_blocking(stepgen_pio[i].pio, stepgen_pio[i].sm, command_word & 0x7fffffff);
+            uint32_t put_timeout = 1000;
+            while (pio_sm_is_tx_fifo_full(stepgen_pio[i].pio, stepgen_pio[i].sm)) {
+                if (--put_timeout == 0) break;
+                tight_loop_contents();
+            }
+            if (put_timeout > 0) {
+                pio_sm_put(stepgen_pio[i].pio, stepgen_pio[i].sm, command_word & 0x7fffffff);
+            }
         }
     }
 }
@@ -368,8 +376,7 @@ int main() {
     printf("\033[H");
     
     printf("\n\n--- flexi-ninja ---\n");
-    printf("https://github.com/atrex66/flexi-ninja\n");
-    printf("E-mail:atrex66@gmail.com\n");
+    printf("https://github.com/Expatria-Technologies\n");
     printf("\n");
 
 //    if (!set_sys_clock_khz(pico_clock / 1000, true))
@@ -717,8 +724,18 @@ void handle_data(){
         rx_counter = rx_buffer->packet_id;
     }
     if (!rx_checksum_ok(rx_buffer)) {
-        printf("Checksum error: %d != %d\n", rx_buffer->checksum, checksum_index_in);
+        if (!checksum_error) {
+            printf("Checksum error: %d != %d\n", rx_buffer->checksum, checksum_index_in);
+        }
         checksum_error = 1;
+        checksum_ok_count = 0;
+    } else {
+        if (checksum_error) {
+            if (++checksum_ok_count >= 10) {
+                checksum_error = 0;
+                checksum_ok_count = 0;
+            }
+        }
     }
 
     if (!checksum_error) {
