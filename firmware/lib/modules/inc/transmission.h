@@ -55,6 +55,6 @@ typedef struct{
 uint16_t pwm_calculate_wrap(uint32_t freq);
 bool rx_checksum_ok(transmission_pc_pico_t *rx_buffer);
 bool tx_checksum_ok(transmission_pico_pc_t *tx_buffer);
-uint8_t calculate_checksum(void *buffer, uint8_t len);
+uint8_t calculate_checksum(void *buffer, uint16_t len);
 
 #endif

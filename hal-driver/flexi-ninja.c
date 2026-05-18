@@ -49,9 +49,9 @@ RTAPI_MP_INT(spi_bus, "SPI bus number (0=SPI0, 1=SPI1 on GPIOs 16,19,20,21, 6=SP
 MODULE_AUTHOR("Viola Zsolt");
 MODULE_DESCRIPTION(module_name " driver");
 MODULE_LICENSE("MIT");
+    uint16_t tx_size;
 
-uint8_t tx_size;
-uint8_t rx_size;
+    uint16_t rx_size;
 
 /* maximum number of channels */
 #define MAX_CHAN 4
@@ -666,7 +666,9 @@ void udp_io_process_recv(void *arg, long period)
         if (!tx_checksum_ok(rx_buffer) && debug_mode == 0) {
             rtapi_print_msg(RTAPI_MSG_INFO, module_name ".%d: checksum error: %d != %d\n",
                 d->index, rx_buffer->checksum, calculate_checksum(rx_buffer, rx_size - 1));
+            #if debug == 1
             printbuf((uint8_t *)rx_buffer, rx_size);
+            #endif
             d->checksum_error = 1;
             *d->connected = 0;
             *d->step_ring_fill = 0;
@@ -808,7 +810,7 @@ static void udp_io_process_send(void *arg, long period)
         for (int i = 0; i < stepgens; i++) {
             float f_command = *d->command[i] + offset;
             if (d->first_data) {
-                d->prev_pos[i] = f_command * *d->scale[i];
+                d->prev_pos[i] = offset * *d->scale[i];
             }
             if (*d->enable[i] == 0) {
                 cmd[i] = 0;
@@ -1101,6 +1103,7 @@ int rtapi_app_main(void)
 
 void rtapi_app_exit(void)
 {
+    if (hal_data == NULL) return;
     for (int i = 0; i < instances; i++) {
         rtapi_print_msg(RTAPI_MSG_INFO, module_name ".%d: Exiting component\n", i);
     }
