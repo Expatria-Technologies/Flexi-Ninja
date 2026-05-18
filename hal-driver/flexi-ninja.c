@@ -876,8 +876,8 @@ static void udp_io_process_send(void *arg, long period)
                 if (*d->pwm_frequency[i] > 1000000) {
                     *d->pwm_frequency[i] = 1000000;
                 }
-                if (*d->pwm_frequency[i] < 1907) {
-                    *d->pwm_frequency[i] = 1907;
+                if (*d->pwm_frequency[i] < 1908) {
+                    *d->pwm_frequency[i] = 1908;
                 }
                 if (*d->pwm_min_limit[i] > 0 && *d->pwm_output[i] < *d->pwm_min_limit[i]) {
                     *d->pwm_output[i] = *d->pwm_min_limit[i];
