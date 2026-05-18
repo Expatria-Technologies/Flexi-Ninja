@@ -274,6 +274,7 @@ static void module_init(void)
     tx_buffer = (transmission_pc_pico_t *)malloc(tx_size);
     if (tx_buffer == NULL) {
         rtapi_print_msg(RTAPI_MSG_ERR, module_name ": tx_buffer allocation failed\n");
+        free(rx_buffer);
         return;
     }
     memset(tx_buffer, 0, tx_size);
@@ -673,6 +674,7 @@ void udp_io_process_recv(void *arg, long period)
         *d->step_ring_overflow = (rx_buffer->step_ring_status & STEP_RING_STATUS_OVERFLOW) != 0;
         #if encoders > 0
             for (uint8_t i = 0; i < encoders; i++) {
+                if (*d->enc_scale[i] < 1.0f) *d->enc_scale[i] = 1.0f;
                 #if debug == 1
                     if (*d->enc_reset[i] == 1) {
                         d->enc_offset[i] = rx_buffer->encoder_counter[i];
@@ -771,6 +773,7 @@ static void udp_io_process_send(void *arg, long period)
         #if stepgens > 0
         double f_steps[stepgens] = {0,};
         uint32_t max_f = (uint32_t)(1.0 / ((*d->pulse_width * 2) * 1e-9));
+        if (*d->pulse_width == 0) max_f = 0;
         #if debug == 1
         *d->debug_freq = (float)max_f / 1000.0;
         #endif
@@ -880,7 +883,9 @@ static void udp_io_process_send(void *arg, long period)
                     *d->pwm_output[i] = *d->pwm_min_limit[i];
                 }
                 uint16_t wrap = pwm_calculate_wrap(*d->pwm_frequency[i]);
-                uint16_t duty_cycle = (uint16_t)(round(((float)*d->pwm_output[i] / *d->pwm_maxscale[i]) * wrap));
+                float pwm_max = *d->pwm_maxscale[i];
+                if (pwm_max < 1.0f) pwm_max = 1.0f;
+                uint16_t duty_cycle = (uint16_t)(round(((float)*d->pwm_output[i] / pwm_max) * wrap));
                 tx_buffer->pwm_duty[i] = duty_cycle;
             } else {
                 tx_buffer->pwm_duty[i] = 0;
@@ -1099,4 +1104,6 @@ void rtapi_app_exit(void)
         bcm2835_close();
     }
     hal_exit(comp_id);
+    free(rx_buffer);
+    free(tx_buffer);
 }
