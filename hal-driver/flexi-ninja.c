@@ -434,21 +434,22 @@ void watchdog_process(void *arg, long period)
 }
 
 #if stepgens > 0
-static uint16_t nearest(uint16_t period)
+#define PIO_SETTINGS_COUNT (sizeof(pio_settings) / sizeof(pio_settings[0]))
+static uint16_t nearest(uint32_t period)
 {
     uint16_t min_diff = 65535;
-    uint16_t value = (uint16_t)period / cycle_time_ns;
+    uint16_t value = (uint16_t)(period / cycle_time_ns);
     int16_t calc = 0;
     uint16_t index = 0;
 
     if (value < pio_settings[0].high_cycles) {
         return 0;
     }
-    if (value > pio_settings[298].high_cycles) {
-        return 298;
+    if (value > pio_settings[PIO_SETTINGS_COUNT - 1].high_cycles) {
+        return PIO_SETTINGS_COUNT - 1;
     }
 
-    for (uint16_t i = 0; i < 299; i++) {
+    for (uint16_t i = 0; i < PIO_SETTINGS_COUNT; i++) {
         calc = abs((int)pio_settings[i].high_cycles - (int)value);
         if (calc < min_diff) {
             min_diff = calc;
@@ -477,6 +478,16 @@ static int bb_hal_setup_pins(module_data_t *d, int j, int comp_id,
                              char *name, uint32_t nsize)
 {
     int r;
+
+    if (in_pins_no > 96) {
+        rtapi_print_msg(RTAPI_MSG_ERR, module_name ".%d: in_pins_no (%d) exceeds max 96\n", j, in_pins_no);
+        return -1;
+    }
+    if (out_pins_no > 64) {
+        rtapi_print_msg(RTAPI_MSG_ERR, module_name ".%d: out_pins_no (%d) exceeds max 64\n", j, out_pins_no);
+        return -1;
+    }
+
     char prefix[64];
     snprintf(prefix, sizeof(prefix), instances > 1 ? module_name ".%d" : module_name, j);
 
@@ -748,7 +759,6 @@ static void udp_io_process_send(void *arg, long period)
     int16_t steps;
     uint8_t sign = 0;
 
-    total_cycles = (uint32_t)(*d->period * 1000) / 1000;
     memset(tx_buffer, 0, tx_size);
 
     if (d->watchdog_expired) {
@@ -784,7 +794,7 @@ static void udp_io_process_send(void *arg, long period)
             total_cycles = (uint32_t)((period * (pico_clock / 1000)) / 1000000UL);
             uint16_t pio_index = nearest(*d->pulse_width);
             rtapi_print_msg(RTAPI_MSG_INFO, "Max frequency: %.4f KHz\n", max_f / 1000.0);
-            rtapi_print_msg(RTAPI_MSG_INFO, "max pulse_width: %dnS\n", pio_settings[298].high_cycles * (int)cycle_time_ns);
+            rtapi_print_msg(RTAPI_MSG_INFO, "max pulse_width: %dnS\n", pio_settings[PIO_SETTINGS_COUNT - 1].high_cycles * (int)cycle_time_ns);
             rtapi_print_msg(RTAPI_MSG_INFO, "min pulse_width: %dnS\n", pio_settings[0].high_cycles * (int)cycle_time_ns);
             memset(timing, 0, sizeof(timing));
             for (uint16_t i = 1; i < 1024; i++) {
