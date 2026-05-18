@@ -37,9 +37,9 @@ RTAPI_MP_STRING(ip_address, "Ip address");
 MODULE_AUTHOR("Viola Zsolt");
 MODULE_DESCRIPTION(module_name " driver");
 MODULE_LICENSE("MIT");
+    uint16_t tx_size;
 
-uint8_t tx_size;
-uint8_t rx_size;
+    uint16_t rx_size;
 
 /* maximum number of channels */
 #define MAX_CHAN 4
@@ -268,6 +268,7 @@ static void module_init(void)
     tx_buffer = (transmission_pc_pico_t *)malloc(tx_size);
     if (tx_buffer == NULL) {
         rtapi_print_msg(RTAPI_MSG_ERR, module_name ": tx_buffer allocation failed\n");
+        free(rx_buffer);
         return;
     }
     memset(tx_buffer, 0, tx_size);
@@ -314,6 +315,7 @@ static void init_socket(module_data_t *arg)
             d->index, d->ip_address->ip);
         close(d->sockfd);
         d->sockfd = -1;
+        return;
     }
     setsockopt(d->sockfd, SOL_SOCKET, SO_SNDBUF, &bufsize, sizeof(bufsize));
     setsockopt(d->sockfd, SOL_SOCKET, SO_RCVBUF, &bufsize, sizeof(bufsize));
@@ -422,6 +424,37 @@ static int bb_hal_setup_pins(module_data_t *d, int j, int comp_id,
         *d->output[i] = 0;
     }
 
+    for (int i = 0; i < ex_in_count; i++) {
+        memset(name, 0, nsize);
+        snprintf(name, nsize, "%s.input.%s", prefix, ex_input_pins[i].name);
+        r = hal_pin_bit_newf(HAL_OUT, &d->ex_input[i], comp_id, name, j);
+        if (r < 0) {
+            rtapi_print_msg(RTAPI_MSG_ERR,
+                module_name ".%d: ERROR: ex pin export failed with err=%i\n", j, r);
+            return r;
+        }
+        memset(name, 0, nsize);
+        snprintf(name, nsize, "%s.input.%s-not", prefix, ex_input_pins[i].name);
+        r = hal_pin_bit_newf(HAL_OUT, &d->ex_input_not[i], comp_id, name, j);
+        if (r < 0) {
+            rtapi_print_msg(RTAPI_MSG_ERR,
+                module_name ".%d: ERROR: ex pin export failed with err=%i\n", j, r);
+            return r;
+        }
+    }
+
+    for (int i = 0; i < ex_out_count; i++) {
+        memset(name, 0, nsize);
+        snprintf(name, nsize, "%s.output.%s", prefix, ex_output_pins[i].name);
+        r = hal_pin_bit_newf(HAL_IN, &d->ex_output[i], comp_id, name, j);
+        if (r < 0) {
+            rtapi_print_msg(RTAPI_MSG_ERR,
+                module_name ".%d: ERROR: ex pin export failed with err=%i\n", j, r);
+            return r;
+        }
+        *d->ex_output[i] = 0;
+    }
+
     return 0;
 }
 
@@ -434,6 +467,11 @@ static void bb_hal_process_recv(module_data_t *d)
             *d->input[i] = (rx_buffer->inputs[1] >> ((input_pins[i].gpio - 32) & 31)) & 1;
         }
         *d->input_not[i] = !(*d->input[i]);
+    }
+
+    for (int i = 0; i < ex_in_count; i++) {
+        *d->ex_input[i] = (rx_buffer->inputs[2] >> ex_input_pins[i].ex_num) & 1;
+        *d->ex_input_not[i] = !(*d->ex_input[i]);
     }
 }
 
@@ -501,14 +539,18 @@ void udp_io_process_recv(void *arg, long period)
         return;
     }
 
-    static socklen_t addrlen = sizeof(d->remote_addr);
-    int len = recvfrom(d->sockfd, rx_buffer, rx_size, 0, &d->remote_addr, &addrlen);
+    struct sockaddr_in from_addr;
+    socklen_t addrlen = sizeof(from_addr);
+    int len = recvfrom(d->sockfd, rx_buffer, rx_size, 0, (struct sockaddr *)&from_addr, &addrlen);
 
-    if (len == rx_size) {
+    if (len == rx_size &&
+        from_addr.sin_addr.s_addr == d->remote_addr.sin_addr.s_addr) {
         if (!tx_checksum_ok(rx_buffer) && debug_mode == 0) {
             rtapi_print_msg(RTAPI_MSG_INFO, module_name ".%d: checksum error: %d != %d\n",
                 d->index, rx_buffer->checksum, calculate_checksum(rx_buffer, rx_size - 1));
+            #if debug == 1
             printbuf((uint8_t *)rx_buffer, rx_size);
+            #endif
             d->checksum_error = 1;
             *d->connected = 0;
             *d->step_ring_fill = 0;
@@ -591,6 +633,8 @@ void udp_io_process_recv(void *arg, long period)
             }
         #endif
         bb_hal_process_recv(d);
+    } else {
+        *d->connected = 0;
     }
 }
 
@@ -600,7 +644,6 @@ static void udp_io_process_send(void *arg, long period)
     int16_t steps;
     uint8_t sign = 0;
 
-    total_cycles = (uint32_t)(*d->period * 1000) / 1000;
     memset(tx_buffer, 0, tx_size);
 
     if (d->watchdog_expired) {
@@ -625,6 +668,7 @@ static void udp_io_process_send(void *arg, long period)
         #if stepgens > 0
         double f_steps[stepgens] = {0,};
         uint32_t max_f = (uint32_t)(1.0 / ((*d->pulse_width * 2) * 1e-9));
+        if (*d->pulse_width == 0) max_f = 0;
         #if debug == 1
         *d->debug_freq = (float)max_f / 1000.0;
         #endif
@@ -649,7 +693,7 @@ static void udp_io_process_send(void *arg, long period)
         for (int i = 0; i < stepgens; i++) {
             float f_command = *d->command[i] + offset;
             if (d->first_data) {
-                d->prev_pos[i] = f_command * *d->scale[i];
+                d->prev_pos[i] = offset * *d->scale[i];
             }
             if (*d->enable[i] == 0) {
                 cmd[i] = 0;
@@ -813,8 +857,18 @@ int rtapi_app_main(void)
 
     module_init();
 
+    if (ip_address == NULL) {
+        rtapi_print_msg(RTAPI_MSG_ERR, module_name ": ip_address not specified\n");
+        return -1;
+    }
+
     IpPort results[MAX_CHAN];
-    instances = parse_ip_port((char *)ip_address, results, 8);
+    instances = parse_ip_port((char *)ip_address, results, MAX_CHAN);
+
+    if (instances <= 0) {
+        rtapi_print_msg(RTAPI_MSG_ERR, module_name ": no valid IP:port entries found\n");
+        return -1;
+    }
 
     for (int i = 0; i < instances; i++) {
         rtapi_print_msg(RTAPI_MSG_INFO, "Parsed IP: %s, Port: %d\n", results[i].ip, results[i].port);
@@ -996,9 +1050,12 @@ int rtapi_app_main(void)
 
 void rtapi_app_exit(void)
 {
+    if (hal_data == NULL) return;
     for (int i = 0; i < instances; i++) {
         rtapi_print_msg(RTAPI_MSG_INFO, module_name ".%d: Exiting component\n", i);
         close(hal_data[i].sockfd);
     }
     hal_exit(comp_id);
+    free(rx_buffer);
+    free(tx_buffer);
 }
