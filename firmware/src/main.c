@@ -227,8 +227,6 @@ void core1_entry() {
     multicore_lockout_victim_init();
 
     memset(src_ip, 0, 4);
-    sleep_ms(500);
-
     gpio_init(LED_GPIO);
     gpio_set_dir(LED_GPIO, GPIO_OUT);
 
@@ -351,7 +349,6 @@ int main() {
     stdio_init_all();
     gpio_init(LED_GPIO);
     gpio_set_dir(LED_GPIO, GPIO_OUT);
-    sleep_ms(2000);
 
     src_ip = (uint8_t *)malloc(4);
     rx_buffer = (transmission_pc_pico_t *)malloc(rx_size);
@@ -1004,9 +1001,9 @@ void w5100s_init() {
     reg_wizchip_spiburst_cbfunc(spi_read_burst, spi_write_burst);
 
     gpio_put(GPIO_RESET, 0);
-    sleep_ms(100);
+    sleep_ms(10);
     gpio_put(GPIO_RESET, 1);
-    sleep_ms(500);
+    sleep_ms(50);
 
     dma_tx = dma_claim_unused_channel(true);
     dma_rx = dma_claim_unused_channel(true);

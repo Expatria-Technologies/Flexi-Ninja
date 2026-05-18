@@ -373,8 +373,8 @@ static void init_spi(void)
     } else {
         bcm2835_gpio_set(17);
     }
-    rtapi_print_msg(RTAPI_MSG_INFO, module_name ": GPIO17 released high, waiting 4s for RP2350 to boot\n");
-    bcm2835_delay(4000);
+    rtapi_print_msg(RTAPI_MSG_INFO, module_name ": GPIO17 released high, waiting 1s for RP2350 to boot\n");
+    bcm2835_delay(1000);
 
     if (spi_bus == 6) {
         if (rp1) {
