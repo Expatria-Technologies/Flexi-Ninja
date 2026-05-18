@@ -668,7 +668,7 @@ void udp_io_process_recv(void *arg, long period)
     int len = _receive(d);
 
     if (len == rx_size) {
-        if (!tx_checksum_ok(rx_buffer) && debug_mode == 0) {
+        if (d->last_received_time != 0 && !tx_checksum_ok(rx_buffer) && debug_mode == 0) {
             rtapi_print_msg(RTAPI_MSG_INFO, module_name ".%d: checksum error: %d != %d\n",
                 d->index, rx_buffer->checksum, calculate_checksum(rx_buffer, rx_size - 1));
             #if debug == 1
