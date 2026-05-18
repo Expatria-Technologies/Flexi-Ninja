@@ -18,6 +18,8 @@ void ninja_pwm_init(uint8_t pin){
 }
 
 uint16_t pwm_calculate_wrap(uint32_t freq) {
+    if (freq == 0) return 0;
+
     // Get system clock (default 125 MHz for RP2040)
     uint32_t sys_clock = pico_clock;
     
