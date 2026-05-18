@@ -316,17 +316,17 @@ void core1_entry() {
             #endif
 
             #if stepgens > 0
-            sety = pio_settings[rx_buffer->pio_timing].sety & 31;
-            nop = pio_settings[rx_buffer->pio_timing].nop & 31;
+            if (rx_buffer->pio_timing < sizeof(pio_settings) / sizeof(pio_settings[0])) {
+                sety = pio_settings[rx_buffer->pio_timing].sety & 31;
+                nop = pio_settings[rx_buffer->pio_timing].nop & 31;
 
-            if (old_sety != sety || old_nop != nop) {
-                if (rx_buffer->pio_timing < sizeof(pio_settings)){
+                if (old_sety != sety || old_nop != nop) {
                     for (int i=0; i<stepgens; i++){
                         pio_sm_exec(stepgen_pio[i].pio, stepgen_pio[i].sm, pio_encode_jmp(1));
                         stepgen_pio[i].pio->instr_mem[4] = pio_encode_set(pio_y, sety);
                         stepgen_pio[i].pio->instr_mem[5] = pio_encode_nop() | pio_encode_delay(nop);
                     }
-                    float cycle_time_ns = 1.0f / pico_clock * 1000000000.0f; // Cycle time in nanoseconds
+                    float cycle_time_ns = 1.0f / pico_clock * 1000000000.0f;
                     printf("New pulse width set: %d\n", pio_settings[rx_buffer->pio_timing].high_cycles * (uint8_t)cycle_time_ns);
                     old_sety = sety;
                     old_nop = nop;
