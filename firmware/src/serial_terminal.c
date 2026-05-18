@@ -40,8 +40,7 @@ void save_configuration(){
 }
 
 void load_configuration(){
-    flash_config = (configuration_t *)malloc(sizeof(configuration_t));
-    load_config_from_flash(flash_config);
+    load_config_from_flash();
     memcpy(net_info.mac, flash_config->mac, 6);
     memcpy(net_info.ip, flash_config->ip, 4);
     memcpy(net_info.sn, flash_config->sn, 4);
