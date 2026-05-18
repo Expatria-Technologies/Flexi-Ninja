@@ -877,7 +877,7 @@ void __time_critical_func(timer_callback)(uint triggered_alarm_num) {
     step_ring_tail = (uint8_t)((step_ring_tail + 1u) % STEP_RING_BUFFER_SIZE);
     step_ring_count--;
 
-    next_step_alarm_us += step_timer_period_us;
+    next_step_alarm_us = time_us_64() + step_timer_period_us;
     hardware_alarm_set_target(triggered_alarm_num, from_us_since_boot(next_step_alarm_us));
 
     apply_stepgen_commands(step_commands);

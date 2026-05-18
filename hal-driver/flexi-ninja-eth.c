@@ -714,6 +714,8 @@ static void udp_io_process_send(void *arg, long period)
                 }
                 #endif
                 steps = abs(steps);
+                if (steps < 0) steps = 1023;
+                if (steps > 1023) steps = 1023;
 
                 if (d->prev_pos[i] < 0 && d->curr_pos[i] > 0) {
                     steps++;
@@ -739,6 +741,7 @@ static void udp_io_process_send(void *arg, long period)
                     steps_per_sec = max_f;
                 }
                 uint32_t steps_per_cycle = (uint32_t)(steps_per_sec * (period / 1000000000.0));
+                if (steps_per_cycle > 1023) steps_per_cycle = 1023;
                 #if debug == 1
                 *d->debug_steps[i] += (uint16_t)steps_per_cycle;
                 if (*d->debug_steps_reset == 1) {
