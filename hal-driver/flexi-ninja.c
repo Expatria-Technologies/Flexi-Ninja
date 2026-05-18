@@ -47,7 +47,6 @@ RTAPI_MP_INT(spi_bus, "SPI bus number (0=SPI0, 1=SPI1 on GPIOs 16,19,20,21, 6=SP
 #include "hal_pin_macros.h"
 
 /* module information */
-MODULE_AUTHOR("Viola Zsolt");
 MODULE_DESCRIPTION(module_name " driver");
 MODULE_LICENSE("MIT");
     uint16_t tx_size;
@@ -805,7 +804,7 @@ static void udp_io_process_send(void *arg, long period)
             memset(timing, 0, sizeof(timing));
             for (uint16_t i = 1; i < 1024; i++) {
                 step_counter = (uint32_t)((float)(total_cycles / i) - pio_settings[pio_index].high_cycles) - dormant_cycles;
-                pio_cmd = (uint32_t)(step_counter << 10 | (i - 1));
+                pio_cmd = (uint32_t)(step_counter << 10 | i);
                 timing[i] = pio_cmd;
             }
         }
