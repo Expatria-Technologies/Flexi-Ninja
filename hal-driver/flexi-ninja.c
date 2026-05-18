@@ -837,7 +837,7 @@ static void udp_io_process_send(void *arg, long period)
             } else {
                 float velocity = *d->command[i];
                 float steps_per_sec = velocity * *d->scale[i];
-                uint8_t sign = (velocity >= 0) ? 1 : 0;
+                sign = (velocity >= 0) ? 1 : 0;
 
                 steps_per_sec = fabs(steps_per_sec);
                 if (steps_per_sec > max_f) {
@@ -879,7 +879,7 @@ static void udp_io_process_send(void *arg, long period)
                 if (*d->pwm_frequency[i] < 1907) {
                     *d->pwm_frequency[i] = 1907;
                 }
-                if (*d->pwm_output[i] < *d->pwm_min_limit[i]) {
+                if (*d->pwm_min_limit[i] > 0 && *d->pwm_output[i] < *d->pwm_min_limit[i]) {
                     *d->pwm_output[i] = *d->pwm_min_limit[i];
                 }
                 uint16_t wrap = pwm_calculate_wrap(*d->pwm_frequency[i]);
@@ -887,11 +887,12 @@ static void udp_io_process_send(void *arg, long period)
                 if (pwm_max < 1.0f) pwm_max = 1.0f;
                 uint16_t duty_cycle = (uint16_t)(round(((float)*d->pwm_output[i] / pwm_max) * wrap));
                 tx_buffer->pwm_duty[i] = duty_cycle;
+                tx_buffer->pwm_frequency[i] = *d->pwm_frequency[i];
             } else {
                 tx_buffer->pwm_duty[i] = 0;
+                tx_buffer->pwm_frequency[i] = 0;
             }
         }
-        tx_buffer->pwm_frequency[i] = *d->pwm_frequency[i];
     }
     #endif
 
