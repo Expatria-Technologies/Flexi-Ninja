@@ -168,7 +168,7 @@ typedef struct {
     int64_t curr_pos[6];
     bool watchdog_running;
     bool error_triggered;
-    bool first_data;
+    bool first_data[stepgens];
     float delta_pos[encoders];
     int32_t delta_count[encoders];
     int32_t delta_count_accum[encoders];
@@ -700,12 +700,14 @@ static void udp_io_process_send(void *arg, long period)
         int32_t cmd[stepgens] = {0,};
         for (int i = 0; i < stepgens; i++) {
             float f_command = *d->command[i] + offset;
-            if (d->first_data) {
-                d->prev_pos[i] = offset * *d->scale[i];
-            }
             if (*d->enable[i] == 0) {
+                d->first_data[i] = true;
                 cmd[i] = 0;
                 continue;
+            }
+            if (d->first_data[i]) {
+                d->prev_pos[i] = offset * *d->scale[i];
+                d->first_data[i] = false;
             }
             if (*d->mode[i] == 0) {
                 d->curr_pos[i] = f_command * *d->scale[i];
@@ -761,7 +763,6 @@ static void udp_io_process_send(void *arg, long period)
             }
             *d->feedback[i] = *d->command[i];
         }
-        d->first_data = false;
         for (uint8_t i = 0; i < stepgens; i++) {
             tx_buffer->stepgen_command[i] = cmd[i];
         }
@@ -910,7 +911,8 @@ int rtapi_app_main(void)
         hal_data[j].last_received_time = 0;
         hal_data[j].watchdog_expired = 0;
         hal_data[j].watchdog_running = 0;
-        hal_data[j].first_data = true;
+        for (int k = 0; k < stepgens; k++)
+            hal_data[j].first_data[k] = true;
         hal_data[j].error_triggered = false;
 
         hal_data[j].ip_address = &results[j];
