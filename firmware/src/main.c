@@ -329,8 +329,8 @@ void core1_entry() {
                 if (old_sety != sety || old_nop != nop) {
                     for (int i=0; i<stepgens; i++){
                         pio_sm_exec(stepgen_pio[i].pio, stepgen_pio[i].sm, pio_encode_jmp(1));
-                        stepgen_pio[i].pio->instr_mem[4] = pio_encode_set(pio_y, sety);
-                        stepgen_pio[i].pio->instr_mem[5] = pio_encode_nop() | pio_encode_delay(nop);
+                        stepgen_pio[i].pio->instr_mem[6] = pio_encode_set(pio_y, sety);
+                        stepgen_pio[i].pio->instr_mem[7] = pio_encode_nop() | pio_encode_delay(nop);
                     }
                     float cycle_time_ns = 1.0f / pico_clock * 1000000000.0f;
                     printf("New pulse width set: %d\n", pio_settings[rx_buffer->pio_timing].high_cycles * (uint8_t)cycle_time_ns);
@@ -348,6 +348,7 @@ void core1_entry() {
                 }
             }
             #endif
+
         }
     }
 }

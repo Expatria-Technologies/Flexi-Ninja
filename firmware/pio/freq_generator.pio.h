@@ -21,16 +21,16 @@ static const uint16_t freq_generator_program_instructions[] = {
     0xe081, //  0: set    pindirs, 1
     0x80a0, //  1: pull   block
     0x602a, //  2: out    x, 10
-    0xe001, //  3: set    pins, 1
-    0xe058, //  4: set    y, 24
-    0xa842, //  5: nop                           [8]
-    0x0085, //  6: jmp    y--, 5
-    0xe000, //  7: set    pins, 0
-    0xa047, //  8: mov    y, osr
-    0x0089, //  9: jmp    y--, 9
-    0x0043, // 10: jmp    x--, 3
-    0xa042, // 11: nop
-    0x0001, // 12: jmp    1
+    0x0045, //  3: jmp    x--, 5
+    0x0001, //  4: jmp    1
+    0xe001, //  5: set    pins, 1
+    0xe058, //  6: set    y, 24
+    0xa842, //  7: nop                           [8]
+    0x0087, //  8: jmp    y--, 7
+    0xe000, //  9: set    pins, 0
+    0xa047, // 10: mov    y, osr
+    0x008b, // 11: jmp    y--, 11
+    0x0003, // 12: jmp    3
             //     .wrap
 };
 

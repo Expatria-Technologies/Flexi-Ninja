@@ -16,17 +16,18 @@
     set pindirs, 1   ;
 again:
     pull block       ;
-    out x, 10        ; 10 bit number of steps 2.
-loop0:
-    set pins, 1      ; 
+    out x, 10        ; 10 bit number of steps
+check:
+    jmp x--, step    ; dec X, jump if pre-dec X was non-zero
+    jmp again        ; X=0 before dec, no more steps
+step:
+    set pins, 1      ;
     set y, 24        ;
 loop1:
-    nop [8]          ; 
-    jmp y--, loop1   ; 
-    set pins, 0      ; 
-    mov y, osr       ; 
+    nop [8]          ;
+    jmp y--, loop1   ;
+    set pins, 0      ;
+    mov y, osr       ;
 loop2:
     jmp y--, loop2   ;
-    jmp x--, loop0   ;
-    nop
-    jmp again        ;
+    jmp check        ; back to decrement check
