@@ -39,6 +39,8 @@ dma_channel_config dma_channel_config_rx;
 #if stepgens > 0
 const StepgenPin stepgen_config[] = STEPGEN_CONFIG;
 uint32_t total_steps[stepgens] = {0,};
+int32_t stepgen_position[stepgens] = {0,};
+uint8_t stepgen_overflow = 0;
 
     #if use_timer_interrupt == 1
     #define STEP_RING_BUFFER_SIZE 3
@@ -144,14 +146,22 @@ static inline void __time_critical_func(apply_stepgen_commands)(const uint32_t *
     for (int i = 0; i < stepgens; i++) {
         uint32_t command_word = step_commands[i];
         if (command_word != 0){
-            gpio_put(stepgen_config[i].dir_pin, (command_word >> 31));
             uint32_t put_timeout = 1000;
             while (pio_sm_is_tx_fifo_full(stepgen_pio[i].pio, stepgen_pio[i].sm)) {
                 if (--put_timeout == 0) break;
                 tight_loop_contents();
             }
             if (put_timeout > 0) {
+                gpio_put(stepgen_config[i].dir_pin, (command_word >> 31));
+                if (rx_buffer->dir_setup_ns[i] > 0) {
+                    uint32_t cycles = (uint32_t)rx_buffer->dir_setup_ns[i] * 3 / 20 + 1;
+                    busy_wait_at_least_cycles(cycles);
+                }
                 pio_sm_put(stepgen_pio[i].pio, stepgen_pio[i].sm, command_word & 0x7fffffff);
+                int32_t steps = (int32_t)(command_word & 0x3ff);
+                stepgen_position[i] += (command_word >> 31) ? steps : -steps;
+            } else {
+                stepgen_overflow |= (1u << i);
             }
         }
     }
@@ -523,6 +533,7 @@ int main() {
         pio_sm_set_consecutive_pindirs(pio, sm, stepgen_config[i].step_pin, 1, true);
         pio_sm_config c = freq_generator_program_get_default_config(offset[o]);
         sm_config_set_set_pins(&c, stepgen_config[i].step_pin, 1);
+        stepgen_pio[i].program_address = offset[o];
         pio_sm_init(pio, sm, offset[o], &c);
         pio_sm_set_enabled(pio, sm, true);
         printf("stepgen%d. pio:%d sm:%d init done...\n", i, stepgen_pio[i].pio_blk, sm);
@@ -835,7 +846,15 @@ void handle_data(){
             tx_buffer->step_ring_status |= STEP_RING_STATUS_OVERFLOW;
         }
     #endif
-    
+
+    #if stepgens > 0
+    for (int i = 0; i < stepgens; i++) {
+        tx_buffer->stepgen_position[i] = stepgen_position[i];
+    }
+    tx_buffer->stepgen_overflow = stepgen_overflow;
+    stepgen_overflow = 0;
+    #endif
+     
     tx_buffer->packet_id = rx_counter;
     tx_buffer->checksum = calculate_checksum(tx_buffer, tx_size - 1);
 }

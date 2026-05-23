@@ -21,6 +21,9 @@ typedef struct{
     uint32_t pwm_duty[pwm_count];
     uint32_t pwm_frequency[pwm_count];
     uint16_t pio_timing;
+    #if stepgens > 0
+    uint16_t dir_setup_ns[stepgens];  // per-axis DIR setup time in nanoseconds
+    #endif
     #if encoders > 0
     uint8_t enc_control;  // enables encoder index 1st bit encoder 0 2nd encoder 1
     #endif
@@ -38,6 +41,10 @@ typedef struct{
     int32_t encoder_velocity[encoders];
     uint32_t encoder_timestamp[encoders];
     uint8_t interrupt_data;
+    #endif
+    #if stepgens > 0
+    int32_t stepgen_position[stepgens];  // signed actual step position per axis
+    uint8_t stepgen_overflow;             // bitmask: bit i = stepgen i overflowed
     #endif
     uint32_t inputs[4];
     uint32_t jitter;

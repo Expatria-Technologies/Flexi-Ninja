@@ -9,11 +9,11 @@ loadrt [EMCMOT]EMCMOT servo_period_nsec=[EMCMOT]SERVO_PERIOD num_joints=[KINS]JO
    loadrt toggle2nist names=hold_toggle,paused_toggle
 
 #Add HAL components to thread
-   addf flexi-ninja.process-recv servo-thread
    addf motion-command-handler servo-thread
-   addf motion-controller servo-thread
    addf flexi-ninja.watchdog-process servo-thread
    addf flexi-ninja.process-send servo-thread
+   addf flexi-ninja.process-recv servo-thread
+   addf motion-controller servo-thread
    addf estop_latch servo-thread
    addf run_and servo-thread
    addf step_and servo-thread
@@ -76,6 +76,7 @@ loadrt [EMCMOT]EMCMOT servo_period_nsec=[EMCMOT]SERVO_PERIOD num_joints=[KINS]JO
 
 # Joint 0 - X axis
    setp flexi-ninja.stepgen.0.step-scale [JOINT_0]SCALE
+   setp flexi-ninja.stepgen.0.dir-setup [JOINT_0]DIR_SETUP
    net Xpos-cmd joint.0.motor-pos-cmd => flexi-ninja.stepgen.0.command
    net Xpos-fb flexi-ninja.stepgen.0.feedback => joint.0.motor-pos-fb
    net X-enable joint.0.amp-enable-out => flexi-ninja.stepgen.0.enable
@@ -83,6 +84,7 @@ loadrt [EMCMOT]EMCMOT servo_period_nsec=[EMCMOT]SERVO_PERIOD num_joints=[KINS]JO
 
 # Joint 1 - Y axis
    setp flexi-ninja.stepgen.1.step-scale [JOINT_1]SCALE
+   setp flexi-ninja.stepgen.1.dir-setup [JOINT_1]DIR_SETUP
    net Ypos-cmd joint.1.motor-pos-cmd => flexi-ninja.stepgen.1.command
    net Ypos-fb flexi-ninja.stepgen.1.feedback => joint.1.motor-pos-fb
    net Y-enable joint.1.amp-enable-out => flexi-ninja.stepgen.1.enable
@@ -90,6 +92,7 @@ loadrt [EMCMOT]EMCMOT servo_period_nsec=[EMCMOT]SERVO_PERIOD num_joints=[KINS]JO
 
 # Joint 2 - Z axis
    setp flexi-ninja.stepgen.2.step-scale [JOINT_2]SCALE
+   setp flexi-ninja.stepgen.2.dir-setup [JOINT_2]DIR_SETUP
    net Zpos-cmd joint.2.motor-pos-cmd => flexi-ninja.stepgen.2.command
    net Zpos-fb flexi-ninja.stepgen.2.feedback => joint.2.motor-pos-fb
    net Z-enable joint.2.amp-enable-out => flexi-ninja.stepgen.2.enable
@@ -97,6 +100,7 @@ loadrt [EMCMOT]EMCMOT servo_period_nsec=[EMCMOT]SERVO_PERIOD num_joints=[KINS]JO
 
 # Joint 3 - second Y axis
    setp flexi-ninja.stepgen.3.step-scale [JOINT_3]SCALE
+   setp flexi-ninja.stepgen.3.dir-setup [JOINT_3]DIR_SETUP
    net Apos-cmd joint.3.motor-pos-cmd => flexi-ninja.stepgen.3.command
    net Apos-fb flexi-ninja.stepgen.3.feedback => joint.3.motor-pos-fb
    net A-enable joint.3.amp-enable-out => flexi-ninja.stepgen.3.enable

@@ -97,6 +97,7 @@ typedef struct {
     hal_bit_t *mode[stepgens];
     hal_bit_t *enable[stepgens];
     hal_u32_t *pulse_width;
+    hal_u32_t *dir_setup_ns[stepgens];
     #endif
     #if encoders > 0
     hal_s32_t *raw_count[encoders];
@@ -166,6 +167,7 @@ typedef struct {
     uint8_t checksum_index;
     uint8_t checksum_index_in;
     uint8_t checksum_error;
+    int32_t last_actual_position[stepgens];
     float enc_prev_pos[encoders];
     uint32_t enc_timestamp[encoders];
     uint32_t delta_time[encoders];
@@ -754,6 +756,22 @@ void udp_io_process_recv(void *arg, long period)
                 d->enc_prev_pos[i] = *d->enc_position[i];
             }
         #endif
+
+        #if stepgens > 0
+        for (int i = 0; i < stepgens; i++) {
+            int32_t actual = rx_buffer->stepgen_position[i];
+            int32_t delta = actual - d->last_actual_position[i];
+            d->last_actual_position[i] = actual;
+            *d->feedback[i] += (float)delta / *d->scale[i];
+
+            if (rx_buffer->stepgen_overflow & (1u << i)) {
+                rtapi_print_msg(RTAPI_MSG_WARN,
+                    module_name ".%d: stepgen.%d overflow (PIO busy), "
+                    "position delta skipped\n", d->index, i);
+            }
+        }
+        #endif
+
         bb_hal_process_recv(d);
     }
 }
@@ -789,24 +807,33 @@ static void udp_io_process_send(void *arg, long period)
         double f_steps[stepgens] = {0,};
         uint32_t max_f = (uint32_t)(1.0 / ((*d->pulse_width * 2) * 1e-9));
         if (*d->pulse_width == 0) max_f = 0;
-        #if debug == 1
-        *d->debug_freq = (float)max_f / 1000.0;
-        #endif
         if (old_pulse_width != *d->pulse_width) {
             old_pulse_width = *d->pulse_width;
             uint32_t step_counter;
             uint32_t pio_cmd;
             total_cycles = (uint32_t)((period * (pico_clock / 1000)) / 1000000UL);
             uint16_t pio_index = nearest(*d->pulse_width);
-            rtapi_print_msg(RTAPI_MSG_INFO, "Max frequency: %.4f KHz\n", max_f / 1000.0);
             rtapi_print_msg(RTAPI_MSG_INFO, "max pulse_width: %dnS\n", pio_settings[PIO_SETTINGS_COUNT - 1].high_cycles * (int)cycle_time_ns);
             rtapi_print_msg(RTAPI_MSG_INFO, "min pulse_width: %dnS\n", pio_settings[0].high_cycles * (int)cycle_time_ns);
             memset(timing, 0, sizeof(timing));
+            uint16_t max_steps_per_cycle = 0;
             for (uint16_t i = 1; i < 1024; i++) {
-                step_counter = (uint32_t)((float)(total_cycles / i) - pio_settings[pio_index].high_cycles) - dormant_cycles;
-                pio_cmd = (uint32_t)(step_counter << 10 | i);
-                timing[i] = pio_cmd;
+                float total_per_step = (float)(total_cycles / i);
+                if (total_per_step >= 2.0f * (float)pio_settings[pio_index].high_cycles + (float)dormant_cycles) {
+                    step_counter = (uint32_t)(total_per_step - (float)pio_settings[pio_index].high_cycles - (float)dormant_cycles);
+                    pio_cmd = (uint32_t)(step_counter << 10 | i);
+                    timing[i] = pio_cmd;
+                    max_steps_per_cycle = i;
+                }
             }
+            float max_f = (float)max_steps_per_cycle / ((float)period * 1e-9f);
+            rtapi_print_msg(RTAPI_MSG_INFO, "Max step frequency: %.4f KHz\n", max_f / 1000.0f);
+            if (max_steps_per_cycle == 0) {
+                rtapi_print_msg(RTAPI_MSG_ERR, "pulse_width %dns too large for servo period %ldns\n", *d->pulse_width, period);
+            }
+            #if debug == 1
+            *d->debug_freq = max_f / 1000.0f;
+            #endif
         }
 
         int32_t cmd[stepgens] = {0,};
@@ -843,11 +870,16 @@ static void udp_io_process_send(void *arg, long period)
                 if (d->prev_pos[i] < d->curr_pos[i]) {
                     sign = 1;
                 }
-                d->prev_pos[i] = d->curr_pos[i];
                 if (steps > 0) {
                     cmd[i] = (timing[steps] | (sign << 31));
+                    if (sign == 1) {
+                        d->prev_pos[i] += steps;
+                    } else {
+                        d->prev_pos[i] -= steps;
+                    }
                 } else {
                     cmd[i] = 0;
+                    d->prev_pos[i] = d->curr_pos[i];
                 }
             } else {
                 float velocity = *d->command[i];
@@ -873,10 +905,10 @@ static void udp_io_process_send(void *arg, long period)
                     cmd[i] = 0;
                 }
             }
-            *d->feedback[i] = *d->command[i];
         }
         for (uint8_t i = 0; i < stepgens; i++) {
             tx_buffer->stepgen_command[i] = cmd[i];
+            tx_buffer->dir_setup_ns[i] = (uint16_t)*d->dir_setup_ns[i];
         }
         tx_buffer->pio_timing = nearest(*d->pulse_width);
         #endif
@@ -1032,6 +1064,7 @@ int rtapi_app_main(void)
             PIN_FLOAT(&hal_data[j].feedback[i], HAL_OUT, "%s.stepgen.%d.feedback", prefix, i);
             PIN_BIT_INIT(&hal_data[j].mode[i], HAL_IN, 0, "%s.stepgen.%d.mode", prefix, i);
             PIN_BIT_INIT(&hal_data[j].enable[i], HAL_IN, 0, "%s.stepgen.%d.enable", prefix, i);
+            PIN_U32_INIT(&hal_data[j].dir_setup_ns[i], HAL_IN, 2500, "%s.stepgen.%d.dir-setup", prefix, i);
         }
         #endif
         #if encoders > 0
