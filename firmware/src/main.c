@@ -511,11 +511,10 @@ int main() {
 
     #if stepgens > 0
 
-    uint32_t offset[2] = {0, };
+    int32_t offset[3] = {-1, -1, -1};
     offset[0] = pio_add_program_at_offset(pio0, &freq_generator_program, 0);
 
     uint32_t sm = 0;
-    uint8_t o = 0;
     for (uint32_t i = 0; i < stepgens; i++){
         stepgen_pio[i] = get_next_pio(stepgen_len);
         if (stepgen_pio[i].sm == 255){
@@ -523,6 +522,13 @@ int main() {
         }
         pio = stepgen_pio[i].pio;
         sm = stepgen_pio[i].sm;
+        uint8_t o = stepgen_pio[i].pio_blk;
+        if (offset[o] < 0) {
+            offset[o] = pio_add_program_at_offset(pio, &freq_generator_program, 0);
+            if (offset[o] < 0) {
+                printf("ERROR: failed to load program on PIO block %d\n", o);
+            }
+        }
         pio_gpio_init(pio, stepgen_config[i].step_pin);
         gpio_init(stepgen_config[i].dir_pin);
         gpio_set_dir(stepgen_config[i].dir_pin, GPIO_OUT);
@@ -531,10 +537,10 @@ int main() {
         }
         gpio_set_dir(stepgen_config[i].step_pin, GPIO_OUT);
         pio_sm_set_consecutive_pindirs(pio, sm, stepgen_config[i].step_pin, 1, true);
-        pio_sm_config c = freq_generator_program_get_default_config(offset[o]);
+        pio_sm_config c = freq_generator_program_get_default_config((uint)offset[o]);
         sm_config_set_set_pins(&c, stepgen_config[i].step_pin, 1);
-        stepgen_pio[i].program_address = offset[o];
-        pio_sm_init(pio, sm, offset[o], &c);
+        stepgen_pio[i].program_address = (uint)offset[o];
+        pio_sm_init(pio, sm, (uint)offset[o], &c);
         pio_sm_set_enabled(pio, sm, true);
         printf("stepgen%d. pio:%d sm:%d init done...\n", i, stepgen_pio[i].pio_blk, sm);
     }
