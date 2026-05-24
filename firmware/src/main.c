@@ -374,6 +374,9 @@ int main() {
     }
 
     src_ip = (uint8_t *)malloc(4);
+    if (src_ip == NULL) {
+        printf("src_ip allocation failed\n");
+    }
     rx_buffer = (transmission_pc_pico_t *)malloc(rx_size);
     if (rx_buffer == NULL) {
         printf("rx_buffer allocation failed\n");
@@ -1073,6 +1076,10 @@ void w5100s_init() {
 
     wiz_PhyConf phyconf;
     phy_conf = malloc(sizeof(wiz_PhyConf));
+    if (phy_conf == NULL) {
+        printf("phy_conf allocation failed\n");
+        return;
+    }
     wizphy_getphyconf(phy_conf);
     phy_conf->mode = PHY_MODE_MANUAL;
     phy_conf->speed = PHY_SPEED_100;
