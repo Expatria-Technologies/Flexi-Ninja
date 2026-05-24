@@ -814,7 +814,7 @@ void handle_data(){
                 tx_buffer->encoder_timestamp[i] = time_us_32();
                 substep_update(&substep_state[i]);
                 tx_buffer->encoder_counter[i] = did_reset ? 0 : substep_state[i].raw_step;
-                tx_buffer->encoder_velocity[i] = 0;
+                tx_buffer->encoder_velocity[i] = substep_state[i].stopped ? 0 : (substep_state[i].speed / 256);
                 #else
                 int32_t encoder_count = quadrature_encoder_get_count(encoder_pio[i].pio, encoder_pio[i].sm);
                 tx_buffer->encoder_timestamp[i] = time_us_32();

@@ -134,6 +134,14 @@ loadrt [EMCMOT]EMCMOT servo_period_nsec=[EMCMOT]SERVO_PERIOD num_joints=[KINS]JO
 # Pulse width from INI
    setp flexi-ninja.stepgen.pulse-width [FLEXI_NINJA]PULSE_WIDTH
 
+# Encoder filter from INI
+   setp flexi-ninja.encoder.ENC1.filter-tau [ENCODER_1]FILTER_TAU
+   setp flexi-ninja.encoder.ENC1.filter-dt [ENCODER_1]FILTER_DT
+   setp flexi-ninja.encoder.ENC1.vel-threshold [ENCODER_1]VEL_THRESHOLD
+   setp flexi-ninja.encoder.ENC2.filter-tau [ENCODER_2]FILTER_TAU
+   setp flexi-ninja.encoder.ENC2.filter-dt [ENCODER_2]FILTER_DT
+   setp flexi-ninja.encoder.ENC2.vel-threshold [ENCODER_2]VEL_THRESHOLD
+
 # Motor enable outputs to board (non-inverted)
    net X-enable => flexi-ninja.output.X_EN
    net Y-enable => flexi-ninja.output.Y_EN

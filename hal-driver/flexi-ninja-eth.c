@@ -100,6 +100,9 @@ typedef struct {
     hal_bit_t *enc_index[encoders];
     hal_bit_t *enc_reset[encoders];
     hal_float_t *enc_rpm[encoders];
+    hal_float_t *enc_filter_tau[encoders];
+    hal_float_t *enc_filter_dt[encoders];
+    hal_float_t *enc_vel_threshold[encoders];
     #endif
     #if use_pwm == 1
     hal_bit_t *pwm_enable[pwm_count];
@@ -223,17 +226,29 @@ float lpf_update(LowPassFilter *f, float x)
 
 static void update_encoder_velocity_from_deltas(module_data_t *d, uint8_t encoder_index)
 {
+    float tau = fmaxf(*d->enc_filter_tau[encoder_index], 1e-6f);
+    float dt = fmaxf(*d->enc_filter_dt[encoder_index], 1e-6f);
+    filter[encoder_index].alpha = dt / (tau + dt);
+
     if (d->delta_time[encoder_index] == 0) {
         d->delta_pos[encoder_index] = 0.0f;
     } else if (d->delta_time[encoder_index] > 2500000) {
         *d->enc_velocity[encoder_index] = 0;
         d->delta_pos[encoder_index] = 0.0f;
+    } else if (rx_buffer->encoder_velocity[encoder_index] != 0) {
+        float raw_vel = (float)rx_buffer->encoder_velocity[encoder_index] / *d->enc_scale[encoder_index];
+        *d->enc_velocity[encoder_index] = lpf_update(&filter[encoder_index], raw_vel);
     } else {
         d->delta_pos[encoder_index] = (float)d->delta_count_accum[encoder_index] / *d->enc_scale[encoder_index];
         *d->enc_velocity[encoder_index] = lpf_update(
             &filter[encoder_index],
             d->delta_pos[encoder_index] * (1000000.0f / (float)d->delta_time[encoder_index])
         );
+    }
+
+    // Firmware says stopped and velocity is negligible — snap to exact zero
+    if (rx_buffer->encoder_velocity[encoder_index] == 0 && fabsf(*d->enc_velocity[encoder_index]) < *d->enc_vel_threshold[encoder_index]) {
+        *d->enc_velocity[encoder_index] = 0.0f;
     }
 
     *d->enc_rpm[encoder_index] = (*d->enc_velocity[encoder_index]) * 60.0f;
@@ -262,7 +277,7 @@ static int module_init(void)
     memset(tx_buffer, 0, tx_size);
     #if encoders > 0
         for (int i = 0; i < encoders; i++) {
-            lpf_init(&filter[i], 0.008f, 0.0001f);
+            filter[i].y = 0;
         }
     #endif
     return 0;
@@ -987,6 +1002,9 @@ int rtapi_app_main(void)
             PIN_FLOAT(&hal_data[j].enc_velocity[i], HAL_OUT, "%s" e_name ".%s.velocity-rps", prefix, encoder_config[i].name);
             PIN_BIT(&hal_data[j].enc_index[i], HAL_IN, "%s" e_name ".%s.index-enable", prefix, encoder_config[i].name);
             PIN_FLOAT(&hal_data[j].enc_rpm[i], HAL_OUT, "%s" e_name ".%s.velocity-rpm", prefix, encoder_config[i].name);
+            PIN_FLOAT_INIT(&hal_data[j].enc_filter_tau[i], HAL_IN, 0.020f, "%s" e_name ".%s.filter-tau", prefix, encoder_config[i].name);
+            PIN_FLOAT_INIT(&hal_data[j].enc_filter_dt[i], HAL_IN, 0.001f, "%s" e_name ".%s.filter-dt", prefix, encoder_config[i].name);
+            PIN_FLOAT_INIT(&hal_data[j].enc_vel_threshold[i], HAL_IN, 0.001f, "%s" e_name ".%s.vel-threshold", prefix, encoder_config[i].name);
             #if debug == 1
             PIN_BIT_INIT(&hal_data[j].enc_reset[i], HAL_IN, 0, "%s" e_name ".%s.debug-reset", prefix, encoder_config[i].name);
             hal_data[j].enc_prev_pos[i] = 0;
