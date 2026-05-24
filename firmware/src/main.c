@@ -1123,7 +1123,7 @@ static void spi_read_burst(uint8_t *pBuf, uint16_t len)
 
     channel_config_set_read_increment(&dma_channel_config_rx, false);
     channel_config_set_write_increment(&dma_channel_config_rx, true);
-    channel_config_set_transfer_data_size(&dma_channel_config_tx, DMA_SIZE_8);
+    channel_config_set_transfer_data_size(&dma_channel_config_rx, DMA_SIZE_8);
     dma_channel_configure(dma_rx, &dma_channel_config_rx,
                           pBuf,                     
                           &spi_get_hw(SPI_PORT)->dr,
