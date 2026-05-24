@@ -4,7 +4,9 @@ loadrt [EMCMOT]EMCMOT servo_period_nsec=[EMCMOT]SERVO_PERIOD num_joints=[KINS]JO
 #Load HAL components
    loadrt flexi-ninja
    loadrt estop_latch names=estop_latch
-   loadrt and2 names=run_and,step_and
+   loadrt and2 names=run_and,step_and,estop_and
+   loadrt not names=estop_not
+   loadrt or2 names=estop_or
    loadrt toggle names=hold_button_toggle
    loadrt toggle2nist names=hold_toggle,paused_toggle
 
@@ -15,6 +17,9 @@ loadrt [EMCMOT]EMCMOT servo_period_nsec=[EMCMOT]SERVO_PERIOD num_joints=[KINS]JO
    addf flexi-ninja.process-recv servo-thread
    addf motion-controller servo-thread
    addf estop_latch servo-thread
+   addf estop_not servo-thread
+   addf estop_and servo-thread
+   addf estop_or servo-thread
    addf run_and servo-thread
    addf step_and servo-thread
    addf hold_toggle servo-thread
@@ -67,10 +72,14 @@ loadrt [EMCMOT]EMCMOT servo_period_nsec=[EMCMOT]SERVO_PERIOD num_joints=[KINS]JO
    #net spindle-scale-in => spindle_fb_scale.in
    #net spindle-speed-fb spindle_fb_scale.out => spindle.0.speed-in
 
-# E-stop loop: HALT and comms status
-   net user-enable-out iocontrol.0.user-enable-out => flexi-ninja.io-ready-in
+# E-stop loop: HALT + GUI estop + comms status
+   net user-enable-out iocontrol.0.user-enable-out => flexi-ninja.io-ready-in estop_not.in
+   net gui-estop-inv estop_not.out => estop_and.in0
+   net machine-on halui.machine.is-on => estop_and.in1
+   net gui-estop-trip estop_and.out => estop_or.in0
+   net halt-fault flexi-ninja.input.HALT-not => estop_or.in1
+   net estop-fault estop_or.out => estop_latch.fault-in
    net user-request-enable iocontrol.0.user-request-enable => estop_latch.reset
-   net halt-fault flexi-ninja.input.HALT-not => estop_latch.fault-in
    net comms-ok flexi-ninja.connected => estop_latch.ok-in
    net linuxcnc-enable estop_latch.ok-out => iocontrol.0.emc-enable-in
 
@@ -106,12 +115,21 @@ loadrt [EMCMOT]EMCMOT servo_period_nsec=[EMCMOT]SERVO_PERIOD num_joints=[KINS]JO
    net A-enable joint.3.amp-enable-out => flexi-ninja.stepgen.3.enable
    net A-home joint.3.home-sw-in <= flexi-ninja.input.A_LIM-not
 
-# Joint 4 - commented out (5th axis)
+# Joint 4 - unused (5th axis)
    # setp flexi-ninja.stepgen.4.step-scale [JOINT_4]SCALE
+   # setp flexi-ninja.stepgen.4.dir-setup [JOINT_4]DIR_SETUP
    # net Bpos-cmd joint.4.motor-pos-cmd => flexi-ninja.stepgen.4.command
    # net Bpos-fb flexi-ninja.stepgen.4.feedback => joint.4.motor-pos-fb
    # net B-enable joint.4.amp-enable-out => flexi-ninja.stepgen.4.enable
    # net B-home joint.4.home-sw-in <= flexi-ninja.input.B_LIM-not
+
+# Joint 5 - unused (6th axis)
+   # setp flexi-ninja.stepgen.5.step-scale [JOINT_5]SCALE
+   # setp flexi-ninja.stepgen.5.dir-setup [JOINT_5]DIR_SETUP
+   # net Cpos-cmd joint.5.motor-pos-cmd => flexi-ninja.stepgen.5.command
+   # net Cpos-fb flexi-ninja.stepgen.5.feedback => joint.5.motor-pos-fb
+   # net C-enable joint.5.amp-enable-out => flexi-ninja.stepgen.5.enable
+   # net C-home joint.5.home-sw-in <= flexi-ninja.input.C_LIM-not
 
 # Pulse width from INI
    setp flexi-ninja.stepgen.pulse-width [FLEXI_NINJA]PULSE_WIDTH
