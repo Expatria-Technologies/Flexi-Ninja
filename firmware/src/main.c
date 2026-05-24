@@ -245,8 +245,10 @@ void core1_entry() {
     multicore_lockout_victim_init();
 
     memset(src_ip, 0, 4);
-    gpio_init(LED_GPIO);
-    gpio_set_dir(LED_GPIO, GPIO_OUT);
+    if (LED_GPIO != PIN_NULL) {
+        gpio_init(LED_GPIO);
+        gpio_set_dir(LED_GPIO, GPIO_OUT);
+    }
 
     // initialize encoder index pins
     #if encoders > 0
@@ -260,7 +262,7 @@ void core1_entry() {
     #endif
 
     while(1){
-        gpio_put(LED_GPIO, !timeout_error);
+        if (LED_GPIO != PIN_NULL) gpio_put(LED_GPIO, !timeout_error);
         time_diff = (uint32_t)absolute_time_diff_us(last_packet_time, get_absolute_time());
         if (time_diff > TIMEOUT_US) {
             if (timeout_error == 0){
@@ -366,8 +368,10 @@ void core1_entry() {
 int main() {
 
     stdio_init_all();
-    gpio_init(LED_GPIO);
-    gpio_set_dir(LED_GPIO, GPIO_OUT);
+    if (LED_GPIO != PIN_NULL) {
+        gpio_init(LED_GPIO);
+        gpio_set_dir(LED_GPIO, GPIO_OUT);
+    }
 
     src_ip = (uint8_t *)malloc(4);
     rx_buffer = (transmission_pc_pico_t *)malloc(rx_size);
