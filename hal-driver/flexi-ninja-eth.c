@@ -90,6 +90,7 @@ typedef struct {
     hal_bit_t *mode[stepgens];
     hal_bit_t *enable[stepgens];
     hal_u32_t *pulse_width;
+    hal_u32_t *dir_setup_ns[stepgens];
     #endif
     #if encoders > 0
     hal_s32_t *raw_count[encoders];
@@ -748,6 +749,7 @@ static void udp_io_process_send(void *arg, long period)
         }
         for (uint8_t i = 0; i < stepgens; i++) {
             tx_buffer->stepgen_command[i] = cmd[i];
+            tx_buffer->dir_setup_ns[i] = (uint16_t)*d->dir_setup_ns[i];
         }
         tx_buffer->pio_timing = nearest(*d->pulse_width);
         #endif
@@ -964,6 +966,7 @@ int rtapi_app_main(void)
             PIN_FLOAT(&hal_data[j].feedback[i], HAL_OUT, "%s.stepgen.%d.feedback", prefix, i);
             PIN_BIT_INIT(&hal_data[j].mode[i], HAL_IN, 0, "%s.stepgen.%d.mode", prefix, i);
             PIN_BIT_INIT(&hal_data[j].enable[i], HAL_IN, 0, "%s.stepgen.%d.enable", prefix, i);
+            PIN_U32_INIT(&hal_data[j].dir_setup_ns[i], HAL_IN, 2500, "%s.stepgen.%d.dir-setup", prefix, i);
         }
         #endif
         #if encoders > 0
