@@ -49,9 +49,9 @@ RTAPI_MP_INT(spi_bus, "SPI bus number (0=SPI0, 1=SPI1 on GPIOs 16,19,20,21, 6=SP
 /* module information */
 MODULE_DESCRIPTION(module_name " driver");
 MODULE_LICENSE("MIT");
-    uint16_t tx_size;
+static uint16_t tx_size;
 
-    uint16_t rx_size;
+static uint16_t rx_size;
 
 /* maximum number of channels */
 #define MAX_CHAN 4
@@ -258,7 +258,7 @@ static void update_encoder_velocity_from_deltas(module_data_t *d, uint8_t encode
     *d->enc_rpm[encoder_index] = (*d->enc_velocity[encoder_index]) * 60.0f;
 }
 
-static void module_init(void)
+static int module_init(void)
 {
     rtapi_print_msg(RTAPI_MSG_INFO, module_name ": module_init\n");
     tx_size = sizeof(transmission_pc_pico_t);
@@ -269,14 +269,14 @@ static void module_init(void)
     rx_buffer = (transmission_pico_pc_t *)malloc(rx_size);
     if (rx_buffer == NULL) {
         rtapi_print_msg(RTAPI_MSG_ERR, module_name ": rx_buffer allocation failed\n");
-        return;
+        return -1;
     }
     memset(rx_buffer, 0, rx_size);
     tx_buffer = (transmission_pc_pico_t *)malloc(tx_size);
     if (tx_buffer == NULL) {
         rtapi_print_msg(RTAPI_MSG_ERR, module_name ": tx_buffer allocation failed\n");
         free(rx_buffer);
-        return;
+        return -1;
     }
     memset(tx_buffer, 0, tx_size);
     #if encoders > 0
@@ -284,6 +284,7 @@ static void module_init(void)
             lpf_init(&filter[i], 0.008f, 0.0001f);
         }
     #endif
+    return 0;
 }
 
 static void rt_peripheral_init(void)
@@ -336,7 +337,8 @@ static void rt_peripheral_init(void)
         else
         {
             rtapi_print_msg(RTAPI_MSG_ERR, module_name ": unknown platform (base 0x%08x, peri_size 0x%08x)\n", base_address, peri_size);
-            return;
+            fclose(fp);
+            return -1;
         }
 
         fclose(fp);
@@ -640,19 +642,6 @@ static int _send(void *arg)
     return rx_size;
 }
 
-uint32_t test[3] = {1, 0, 0};
-
-static inline void roll_left_96(uint32_t buf[3])
-{
-    uint32_t carry0 = (buf[0] >> 31) & 1;
-    uint32_t carry1 = (buf[1] >> 31) & 1;
-    uint32_t carry2 = (buf[2] >> 31) & 1;
-
-    buf[0] = (buf[0] << 1) | carry2;
-    buf[1] = (buf[1] << 1) | carry0;
-    buf[2] = (buf[2] << 1) | carry1;
-}
-
 void udp_io_process_recv(void *arg, long period)
 {
     module_data_t *d = arg;
@@ -779,7 +768,7 @@ void udp_io_process_recv(void *arg, long period)
 static void udp_io_process_send(void *arg, long period)
 {
     module_data_t *d = arg;
-    int16_t steps;
+    int32_t steps;
     uint8_t sign = 0;
 
     memset(tx_buffer, 0, tx_size);
@@ -805,8 +794,10 @@ static void udp_io_process_send(void *arg, long period)
     if (d->watchdog_running == 1) {
         #if stepgens > 0
         double f_steps[stepgens] = {0,};
-        uint32_t max_f = (uint32_t)(1.0 / ((*d->pulse_width * 2) * 1e-9));
-        if (*d->pulse_width == 0) max_f = 0;
+        uint32_t max_f = 0;
+        if (*d->pulse_width > 0) {
+            max_f = (uint32_t)(1.0 / ((*d->pulse_width * 2) * 1e-9));
+        }
         if (old_pulse_width != *d->pulse_width) {
             old_pulse_width = *d->pulse_width;
             uint32_t step_counter;
@@ -851,7 +842,7 @@ static void udp_io_process_send(void *arg, long period)
             if (*d->mode[i] == 0) {
                 d->curr_pos[i] = f_command * *d->scale[i];
                 f_steps[i] = (d->prev_pos[i] - d->curr_pos[i]);
-                steps = (int16_t)f_steps[i];
+                steps = (int32_t)f_steps[i];
 
                 #if debug == 1
                 *d->debug_steps[i] -= steps;
@@ -964,7 +955,7 @@ int rtapi_app_main(void)
 
     rtapi_set_msg_level(RTAPI_MSG_INFO);
 
-    module_init();
+    if (module_init() < 0) return -1;
 
     instances = 1;
 

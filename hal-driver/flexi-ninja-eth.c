@@ -37,9 +37,9 @@ RTAPI_MP_STRING(ip_address, "Ip address");
 /* module information */
 MODULE_DESCRIPTION(module_name " driver");
 MODULE_LICENSE("MIT");
-    uint16_t tx_size;
+static uint16_t tx_size;
 
-    uint16_t rx_size;
+static uint16_t rx_size;
 
 /* maximum number of channels */
 #define MAX_CHAN 4
@@ -150,7 +150,7 @@ typedef struct {
     hal_bit_t *connected;
     hal_bit_t *io_ready_in;
     hal_bit_t *io_ready_out;
-    IpPort *ip_address;
+    IpPort ip_address;
     int sockfd;
     struct sockaddr_in local_addr, remote_addr;
     long long last_received_time;
@@ -197,15 +197,6 @@ LowPassFilter filter[encoders];
 float error_estimate = 0.1;
 #endif
 
-uint64_t get_time_ns()
-{
-    struct timespec ts;
-
-    clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
-
-    return (uint64_t)ts.tv_sec * 1000000000ull + ts.tv_nsec;
-}
-
 uint16_t pwm_calculate_wrap(uint32_t freq)
 {
     uint32_t sys_clock = pico_clock;
@@ -250,7 +241,7 @@ static void update_encoder_velocity_from_deltas(module_data_t *d, uint8_t encode
     *d->enc_rpm[encoder_index] = (*d->enc_velocity[encoder_index]) * 60.0f;
 }
 
-static void module_init(void)
+static int module_init(void)
 {
     rtapi_print_msg(RTAPI_MSG_INFO, module_name ": module_init\n");
     tx_size = sizeof(transmission_pc_pico_t);
@@ -261,14 +252,14 @@ static void module_init(void)
     rx_buffer = (transmission_pico_pc_t *)malloc(rx_size);
     if (rx_buffer == NULL) {
         rtapi_print_msg(RTAPI_MSG_ERR, module_name ": rx_buffer allocation failed\n");
-        return;
+        return -1;
     }
     memset(rx_buffer, 0, rx_size);
     tx_buffer = (transmission_pc_pico_t *)malloc(tx_size);
     if (tx_buffer == NULL) {
         rtapi_print_msg(RTAPI_MSG_ERR, module_name ": tx_buffer allocation failed\n");
         free(rx_buffer);
-        return;
+        return -1;
     }
     memset(tx_buffer, 0, tx_size);
     #if encoders > 0
@@ -276,6 +267,7 @@ static void module_init(void)
             lpf_init(&filter[i], 0.008f, 0.0001f);
         }
     #endif
+    return 0;
 }
 
 static void init_socket(module_data_t *arg)
@@ -290,11 +282,11 @@ static void init_socket(module_data_t *arg)
     }
 
     d->local_addr.sin_family = AF_INET;
-    d->local_addr.sin_port = htons(d->ip_address->port);
+    d->local_addr.sin_port = htons(d->ip_address.port);
     d->local_addr.sin_addr.s_addr = INADDR_ANY;
 
     rtapi_print_msg(RTAPI_MSG_INFO, module_name ".%d: binding to %s:%d\n",
-        d->index, d->ip_address->ip, d->ip_address->port);
+        d->index, d->ip_address.ip, d->ip_address.port);
 
     if (bind(d->sockfd, (struct sockaddr *)&d->local_addr, sizeof(d->local_addr)) < 0) {
         rtapi_print_msg(RTAPI_MSG_ERR, module_name ".%d: bind failed: %s\n",
@@ -311,10 +303,10 @@ static void init_socket(module_data_t *arg)
     fcntl(d->sockfd, F_SETFL, flags | O_NONBLOCK);
 
     d->remote_addr.sin_family = AF_INET;
-    d->remote_addr.sin_port = htons(d->ip_address->port);
-    if (inet_pton(AF_INET, d->ip_address->ip, &d->remote_addr.sin_addr) <= 0) {
+    d->remote_addr.sin_port = htons(d->ip_address.port);
+    if (inet_pton(AF_INET, d->ip_address.ip, &d->remote_addr.sin_addr) <= 0) {
         rtapi_print_msg(RTAPI_MSG_ERR, module_name ".%d: invalid IP address: %s\n",
-            d->index, d->ip_address->ip);
+            d->index, d->ip_address.ip);
         if (close(d->sockfd) < 0) {
             rtapi_print_msg(RTAPI_MSG_ERR, module_name ".%d: close failed after IP error: %s\n",
                 d->index, strerror(errno));
@@ -522,19 +514,6 @@ static int _send(void *arg)
     return sendto(d->sockfd, tx_buffer, tx_size, MSG_DONTROUTE | MSG_DONTWAIT, &d->remote_addr, sizeof(d->remote_addr));
 }
 
-uint32_t test[3] = {1, 0, 0};
-
-static inline void roll_left_96(uint32_t buf[3])
-{
-    uint32_t carry0 = (buf[0] >> 31) & 1;
-    uint32_t carry1 = (buf[1] >> 31) & 1;
-    uint32_t carry2 = (buf[2] >> 31) & 1;
-
-    buf[0] = (buf[0] << 1) | carry2;
-    buf[1] = (buf[1] << 1) | carry0;
-    buf[2] = (buf[2] << 1) | carry1;
-}
-
 void udp_io_process_recv(void *arg, long period)
 {
     module_data_t *d = arg;
@@ -586,6 +565,8 @@ void udp_io_process_recv(void *arg, long period)
                 uint32_t encoder_ts = rx_buffer->encoder_timestamp[i];
                 int32_t encoder_count = rx_buffer->encoder_counter[i];
                 uint8_t index_reset_event = (rx_buffer->interrupt_data >> i) & 0x01u;
+
+                if (*d->enc_scale[i] < 1.0f) *d->enc_scale[i] = 1.0f;
 
                 *d->enc_position[i] = (float)encoder_count / *d->enc_scale[i];
 
@@ -649,7 +630,7 @@ void udp_io_process_recv(void *arg, long period)
 static void udp_io_process_send(void *arg, long period)
 {
     module_data_t *d = arg;
-    int16_t steps;
+    int32_t steps;
     uint8_t sign = 0;
 
     memset(tx_buffer, 0, tx_size);
@@ -675,8 +656,10 @@ static void udp_io_process_send(void *arg, long period)
     if (d->watchdog_running == 1) {
         #if stepgens > 0
         double f_steps[stepgens] = {0,};
-        uint32_t max_f = (uint32_t)(1.0 / ((*d->pulse_width * 2) * 1e-9));
-        if (*d->pulse_width == 0) max_f = 0;
+        uint32_t max_f = 0;
+        if (*d->pulse_width > 0) {
+            max_f = (uint32_t)(1.0 / ((*d->pulse_width * 2) * 1e-9));
+        }
         #if debug == 1
         *d->debug_freq = (float)max_f / 1000.0;
         #endif
@@ -691,7 +674,7 @@ static void udp_io_process_send(void *arg, long period)
             rtapi_print_msg(RTAPI_MSG_INFO, "min pulse_width: %dnS\n", pio_settings[0].high_cycles * (int)cycle_time_ns);
             memset(timing, 0, sizeof(timing));
             for (uint16_t i = 1; i < 1024; i++) {
-                step_counter = (uint32_t)((float)(total_cycles / i) - pio_settings[pio_index].high_cycles) - dormant_cycles;
+                step_counter = (uint32_t)((float)(total_cycles / i) - pio_settings[pio_index].high_cycles - dormant_cycles);
                 pio_cmd = (uint32_t)(step_counter << 10 | i);
                 timing[i] = pio_cmd;
             }
@@ -712,7 +695,7 @@ static void udp_io_process_send(void *arg, long period)
             if (*d->mode[i] == 0) {
                 d->curr_pos[i] = f_command * *d->scale[i];
                 f_steps[i] = (d->prev_pos[i] - d->curr_pos[i]);
-                steps = (int16_t)f_steps[i];
+                steps = (int32_t)f_steps[i];
 
                 #if debug == 1
                 *d->debug_steps[i] -= steps;
@@ -785,6 +768,7 @@ static void udp_io_process_send(void *arg, long period)
                     *d->pwm_output[i] = *d->pwm_min_limit[i];
                 }
                 uint16_t wrap = pwm_calculate_wrap(*d->pwm_frequency[i]);
+                if (*d->pwm_maxscale[i] < 1.0f) *d->pwm_maxscale[i] = 1.0f;
                 uint16_t duty_cycle = (uint16_t)(round(((float)*d->pwm_output[i] / *d->pwm_maxscale[i]) * wrap));
                 tx_buffer->pwm_duty[i] = duty_cycle;
                 tx_buffer->pwm_frequency[i] = *d->pwm_frequency[i];
@@ -863,7 +847,7 @@ int rtapi_app_main(void)
 
     rtapi_set_msg_level(RTAPI_MSG_INFO);
 
-    module_init();
+    if (module_init() < 0) return -1;
 
     if (ip_address == NULL) {
         rtapi_print_msg(RTAPI_MSG_ERR, module_name ": ip_address not specified\n");
@@ -915,7 +899,7 @@ int rtapi_app_main(void)
             hal_data[j].first_data[k] = true;
         hal_data[j].error_triggered = false;
 
-        hal_data[j].ip_address = &results[j];
+        hal_data[j].ip_address = results[j];
         rtapi_print_msg(RTAPI_MSG_INFO, module_name ".%d: init_socket\n", j);
         init_socket(&hal_data[j]);
         rtapi_print_msg(RTAPI_MSG_INFO, module_name ".%d: init_socket ready..\n", j);
