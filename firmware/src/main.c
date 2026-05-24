@@ -57,7 +57,6 @@ uint8_t stepgen_overflow = 0;
     #endif
 #endif
 
-uint8_t buffer_index = 0;
 
 uint8_t *src_ip;
 uint16_t src_port;
@@ -119,7 +118,7 @@ PIO_def_t stepgen_pio[stepgens];
         substep_state[i].speed_2_20 = 0;
         substep_state[i].stopped = 1;
         substep_state[i].idle_stop_sample_count = 0;
-        uint now_us = time_us_32();
+        uint32_t now_us = time_us_32();
         substep_state[i].prev_step_us = now_us;
         substep_state[i].prev_trans_us = now_us;
         substep_state[i].prev_trans_pos = 0;
@@ -776,7 +775,7 @@ void handle_data(){
 
 #if use_pwm == 1
         #if pwm_count < 1
-            #pragma error "Defined to use pwm but not defined any PWM pins"
+            #error "Defined to use pwm but not defined any PWM pins"
         #endif
         // update pwm
         for (int i=0;i<pwm_count;i++){
@@ -789,23 +788,40 @@ void handle_data(){
     }
 #endif
 
-    #if encoders > 0
+        #if encoders > 0
         #if use_stepcounter == 0
         // update encoders
+            static uint8_t enc_reset_done = 0;
             for (int i = 0; i < encoders; i++) {
+                bool did_reset = false;
+                if (rx_buffer->enc_control & CTRL_ENC_RESET(i)) {
+                    if (!(enc_reset_done & (1u << i))) {
+                        enc_reset_done |= (1u << i);
+                        did_reset = true;
+                        #if encoder_pio_version == ENCODER_PIO_SUBSTEP
+                        substep_init_state(encoder_pio[i].pio, encoder_pio[i].sm, encoder_config[i].base_pin, &substep_state[i]);
+                        substep_state[i].idle_stop_samples = ENCODER_IDLE_STOP_SAMPLES;
+                        substep_set_calibration_data(&substep_state[i], 64, 128, 192);
+                        #else
+                        quadrature_encoder_program_init(encoder_pio[i].pio, encoder_pio[i].sm, encoder_config[i].base_pin, 0);
+                        encoder[i] = quadrature_encoder_get_count(encoder_pio[i].pio, encoder_pio[i].sm);
+                        #endif
+                    }
+                } else {
+                    enc_reset_done &= ~(1u << i);
+                }
                 #if encoder_pio_version == ENCODER_PIO_SUBSTEP
                 tx_buffer->encoder_timestamp[i] = time_us_32();
                 substep_update(&substep_state[i]);
-                tx_buffer->encoder_counter[i] = substep_state[i].raw_step;
+                tx_buffer->encoder_counter[i] = did_reset ? 0 : substep_state[i].raw_step;
                 tx_buffer->encoder_velocity[i] = 0;
                 #else
                 int32_t encoder_count = quadrature_encoder_get_count(encoder_pio[i].pio, encoder_pio[i].sm);
                 tx_buffer->encoder_timestamp[i] = time_us_32();
-                tx_buffer->encoder_counter[i] = encoder_count;
-                tx_buffer->encoder_velocity[i] = encoder_count - (int32_t)encoder[i];
-                encoder[i] = (uint32_t)encoder_count;
+                tx_buffer->encoder_counter[i] = did_reset ? 0 : encoder_count;
+                tx_buffer->encoder_velocity[i] = did_reset ? 0 : encoder_count - (int32_t)encoder[i];
+                encoder[i] = (uint32_t)(did_reset ? 0 : encoder_count);
                 #endif
-                //tx_buffer->encoder_latched[i] = encoder_latched[i];
             }
         #else
             // update step counters
@@ -831,7 +847,6 @@ void handle_data(){
     input_buffer[0] = tx_buffer->inputs[0];
     input_buffer[1] = tx_buffer->inputs[1];
     input_buffer[2] = tx_buffer->inputs[2];
-    input_buffer[3] = tx_buffer->inputs[3];
     if (sizeof(output_pins) / sizeof(output_pins[0])>0){
         //set output pins
         for (uint8_t i = 0; i < sizeof(output_pins) / sizeof(output_pins[0]); i++) {
@@ -973,14 +988,7 @@ static void __not_in_flash_func(spi_read_fulldup)(uint8_t *pBuf, uint8_t *sBuf, 
 
 void __not_in_flash_func(handle_udp)() {
     gpio_pull_up(GPIO_INT);
-    uint8_t *packet_buffer;
-    packet_buffer = malloc(SPI_TRANSFER_SIZE);
-    if (packet_buffer == NULL) {
-        printf("SPI packet buffer allocation failed\n");
-        while (1) {
-            sleep_ms(1000);
-        }
-    }
+    static uint8_t packet_buffer[SPI_TRANSFER_SIZE];
     memset(packet_buffer, 0, SPI_TRANSFER_SIZE);
     last_packet_time = get_absolute_time();
     while (1){

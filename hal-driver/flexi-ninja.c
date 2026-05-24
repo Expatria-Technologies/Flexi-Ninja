@@ -152,6 +152,9 @@ typedef struct {
     hal_float_t *debug_freq;
     hal_s32_t *debug_steps[stepgens];
     hal_bit_t *debug_steps_reset;
+    #if encoders > 0
+    uint8_t enc_reset_pending;  // bitmask: bit i = encoder i reset awaiting delivery
+    #endif
 #endif
     hal_u32_t *period;
     hal_bit_t *probe_select;
@@ -169,10 +172,11 @@ typedef struct {
     uint8_t checksum_error;
     int32_t last_actual_position[stepgens];
     float enc_prev_pos[encoders];
+    bool index_triggered[encoders];
     uint32_t enc_timestamp[encoders];
     uint32_t delta_time[encoders];
-    int64_t prev_pos[6];
-    int64_t curr_pos[6];
+    int64_t prev_pos[stepgens];
+    int64_t curr_pos[stepgens];
     bool watchdog_running;
     bool error_triggered;
     bool first_data[stepgens];
@@ -218,11 +222,8 @@ uint16_t pwm_calculate_wrap(uint32_t freq)
 {
     uint32_t sys_clock = pico_clock;
 
-    uint32_t wrap = (uint32_t)(sys_clock / freq);
-
-    if (freq < 1908) {
-        wrap = 65535;
-    }
+    uint32_t wrap = sys_clock / freq;
+    if (wrap > 65535) wrap = 65535;
 
     return (uint16_t)wrap;
 }
@@ -685,12 +686,15 @@ void udp_io_process_recv(void *arg, long period)
                 if (*d->enc_scale[i] < 1.0f) *d->enc_scale[i] = 1.0f;
                 #if debug == 1
                     if (*d->enc_reset[i] == 1) {
-                        *d->enc_reset[i] = 0;
+                        d->enc_reset_pending |= CTRL_ENC_RESET(i);
+                    } else {
+                        d->enc_reset_pending &= ~CTRL_ENC_RESET(i);
                     }
                 #endif
                 uint32_t encoder_ts = rx_buffer->encoder_timestamp[i];
                 int32_t encoder_count = rx_buffer->encoder_counter[i];
                 uint8_t index_reset_event = (rx_buffer->interrupt_data >> i) & 0x01u;
+                d->index_triggered[i] = *d->enc_index[i];
 
                 *d->enc_position[i] = (float)encoder_count / *d->enc_scale[i];
 
@@ -715,11 +719,11 @@ void udp_io_process_recv(void *arg, long period)
                     d->delta_time[i] = 0;
                     d->delta_pos[i] = 0.0f;
                     d->enc_prev_pos[i] = *d->enc_position[i];
-                    *d->enc_index[i] = 0;
+                    d->index_triggered[i] = false;
                     continue;
                 }
 
-                if (*d->enc_index[i] == 1) {
+                if (d->index_triggered[i]) {
                     d->delta_count[i] = encoder_count - *d->raw_count[i];
                     if (d->delta_count[i] < -(*d->enc_scale[i] / 2)) {
                         d->delta_count[i] += (int32_t)*d->enc_scale[i];
@@ -751,6 +755,7 @@ void udp_io_process_recv(void *arg, long period)
             int32_t actual = rx_buffer->stepgen_position[i];
             int32_t delta = actual - d->last_actual_position[i];
             d->last_actual_position[i] = actual;
+            if (*d->scale[i] < 1.0f) *d->scale[i] = 1.0f;
             *d->feedback[i] += (float)delta / *d->scale[i];
 
             if (rx_buffer->stepgen_overflow & (1u << i)) {
@@ -787,8 +792,11 @@ static void udp_io_process_send(void *arg, long period)
     #if encoders > 0
     tx_buffer->enc_control = 0;
     for (int i = 0; i < encoders; i++) {
-        tx_buffer->enc_control |= (uint8_t)(1 * *d->enc_index[i]) << (CTRL_SPINDEX + i);
+        tx_buffer->enc_control |= (uint8_t)(1 * d->index_triggered[i]) << (CTRL_SPINDEX + i);
     }
+    #if debug == 1
+    tx_buffer->enc_control |= d->enc_reset_pending;
+    #endif
     #endif
 
     if (d->watchdog_running == 1) {
@@ -1059,15 +1067,15 @@ int rtapi_app_main(void)
         }
         #endif
         #if encoders > 0
+        #if use_stepcounter == 1
+        #define e_name ".stepcounter"
+        #else
+        #define e_name ".encoder"
+        #endif
         for (int i = 0; i < encoders; i++) {
             hal_data[j].delta_time[i] = 0;
             hal_data[j].delta_count_accum[i] = 0;
             hal_data[j].enc_timestamp[i] = 0;
-            #if use_stepcounter == 1
-                #define e_name ".stepcounter"
-            #else
-                #define e_name ".encoder"
-            #endif
             PIN_S32(&hal_data[j].raw_count[i], HAL_OUT, "%s" e_name ".%s.raw-count", prefix, encoder_config[i].name);
             PIN_FLOAT(&hal_data[j].enc_position[i], HAL_OUT, "%s" e_name ".%s.position", prefix, encoder_config[i].name);
             PIN_FLOAT_INIT(&hal_data[j].enc_scale[i], HAL_IN, 1, "%s" e_name ".%s.scale", prefix, encoder_config[i].name);

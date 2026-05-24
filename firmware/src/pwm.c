@@ -22,13 +22,10 @@ uint16_t pwm_calculate_wrap(uint32_t freq) {
 
     // Get system clock (default 125 MHz for RP2040)
     uint32_t sys_clock = pico_clock;
-    
-    // Calculate wrap with fixed 1.0 divider
-    uint32_t wrap = (uint32_t)(sys_clock/ freq);
 
-    if (freq < 1908){
-        wrap = 65535; // 65535 is the maximum wrap value for 16-bit PWM
-    }
+    // Calculate wrap with fixed 1.0 divider
+    uint32_t wrap = sys_clock / freq;
+    if (wrap > 65535) wrap = 65535;
     return (uint16_t)wrap;
 }
 

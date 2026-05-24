@@ -1,3 +1,6 @@
+#ifndef BCM2835RT_H
+#define BCM2835RT_H
+
 #include "bcm2835.h"
 #include <stdint.h>
 
@@ -137,3 +140,5 @@ exit:
 
     return ok;
 }
+
+#endif

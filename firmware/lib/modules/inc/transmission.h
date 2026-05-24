@@ -6,6 +6,10 @@
 
 // first encoder index
 #define CTRL_SPINDEX 0
+// encoder control bits (enc_control byte)
+#define CTRL_ENC_RESET(n) (1u << (2 + (n)))  // request reset of encoder n's counter
+// encoder control bits (enc_control byte)
+#define CTRL_ENC_RESET(n) (1u << (2 + (n)))  // request reset of encoder n's counter
 
 #define STEP_RING_STATUS_ACTIVE    (1u << 0)
 #define STEP_RING_STATUS_UNDERFLOW (1u << 1)

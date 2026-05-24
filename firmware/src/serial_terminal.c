@@ -23,10 +23,10 @@ extern uint16_t adc_min;
 extern uint16_t adc_max;
 extern uint8_t timeout_error;
 extern uint32_t time_constant;
-extern int32_t *position;
+#if stepgens > 0
 extern uint32_t total_steps[stepgens];
+#endif
 extern volatile uint32_t input_buffer[4];
-bool enable_serial = true;
 
 void save_configuration(){
     flash_config->dhcp = net_info.dhcp;
@@ -112,7 +112,7 @@ void process_command(char* command) {
     #endif
         printf("*******************************************\n");
         for (int i = 0; i < stepgens; i++) {
-            printf("Stepgen %d: %d steps\n", i, total_steps[i]);
+            printf("Stepgen %d: %u steps\n", i, total_steps[i]);
         }
         printf("*******************************************\n");
         printf("Timeout: %d\n", TIMEOUT_US);
@@ -230,7 +230,6 @@ void process_command(char* command) {
 // then null-terminates and processes the command via process_command, resetting the buffer.
 void handle_serial_input() {
     if (timeout_error == 0) {
-        enable_serial = false;
         printf("Terminal locked.\n");
     }
     int inByte = getchar_timeout_us(0);

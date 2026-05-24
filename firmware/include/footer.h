@@ -15,12 +15,9 @@
     
     #ifdef PICO_RP2040
         #if max_statemachines > 8
-            #pragma error "State machines exceeded the maximum platform size (8)."
-        #endif
-    #endif
-    #ifdef PICO_RP2350
-        #if max_statemachines > 12
-            #pragma error "State machines exceeded the maximum platform size (12)."
+            #error "State machines exceeded the maximum platform size (8)."
+...
+            #error "State machines exceeded the maximum platform size (12)."
         #endif
     #endif
 

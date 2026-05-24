@@ -281,8 +281,10 @@ int rp1lib_init(void)
 
     DEBUG_PRINT("Base address: %11lx, size: %lx, mapped at address: %p\n", (unsigned long)inst->phys_addr, (unsigned long)RP1_BAR1_LEN, inst->priv);
 
-    if (inst->priv == MAP_FAILED)
+    if (inst->priv == MAP_FAILED) {
+        close(inst->mem_fd);
         return errno;
+    }
 
     return (int)num_gpios;
 }
@@ -316,8 +318,10 @@ int rt_rp1lib_init(void)
 
     DEBUG_PRINT("Base address: %11lx, size: %lx, mapped at address: %p\n", (unsigned long)inst->phys_addr, (unsigned long)RP1_BAR1_LEN, inst->priv);
 
-    if (inst->priv == MAP_FAILED)
+    if (inst->priv == MAP_FAILED) {
+        close(inst->mem_fd);
         return errno;
+    }
 
     return 1;
 }
@@ -326,6 +330,8 @@ int rp1lib_deinit(void)
 {
     if (inst)
     {
+        if (inst->mem_fd >= 0)
+            close(inst->mem_fd);
         munmap(inst->priv, RP1_BAR1_LEN);
         free(inst);
         return 0;
