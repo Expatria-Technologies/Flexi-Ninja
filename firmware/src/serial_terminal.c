@@ -233,7 +233,7 @@ void handle_serial_input() {
         enable_serial = false;
         printf("Terminal locked.\n");
     }
-    char inByte = getchar_timeout_us(0);
+    int inByte = getchar_timeout_us(0);
     if (inByte == PICO_ERROR_TIMEOUT) {
         return;
     }

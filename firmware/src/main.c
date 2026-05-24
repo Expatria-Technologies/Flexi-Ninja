@@ -63,8 +63,8 @@ uint8_t *src_ip;
 uint16_t src_port;
 uint8_t rx_counter=0;
 
-uint8_t rx_size = sizeof(transmission_pc_pico_t);
-uint8_t tx_size = sizeof(transmission_pico_pc_t);
+uint16_t rx_size = sizeof(transmission_pc_pico_t);
+uint16_t tx_size = sizeof(transmission_pico_pc_t);
 static uint8_t spi_rx_frame[SPI_TRANSFER_SIZE];
 
 uint8_t sety = 0;
@@ -345,7 +345,7 @@ void core1_entry() {
                         stepgen_pio[i].pio->instr_mem[7] = pio_encode_nop() | pio_encode_delay(nop);
                     }
                     float cycle_time_ns = 1.0f / pico_clock * 1000000000.0f;
-                    printf("New pulse width set: %d\n", pio_settings[rx_buffer->pio_timing].high_cycles * (uint8_t)cycle_time_ns);
+                    printf("New pulse width set: %d\n", pio_settings[rx_buffer->pio_timing].high_cycles * (uint32_t)cycle_time_ns);
                     old_sety = sety;
                     old_nop = nop;
                 }
