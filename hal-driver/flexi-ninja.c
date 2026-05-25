@@ -110,6 +110,7 @@ typedef struct {
     hal_float_t *enc_filter_tau[encoders];
     hal_float_t *enc_filter_dt[encoders];
     hal_float_t *enc_vel_threshold[encoders];
+    hal_bit_t *enc_enabled[encoders];
     #endif
     #if use_pwm == 1
     hal_bit_t *pwm_enable[pwm_count];
@@ -246,6 +247,12 @@ float lpf_update(LowPassFilter *f, float x)
 
 static void update_encoder_velocity_from_deltas(module_data_t *d, uint8_t encoder_index)
 {
+    if (!*d->enc_enabled[encoder_index]) {
+        *d->enc_velocity[encoder_index] = 0;
+        *d->enc_rpm[encoder_index] = 0;
+        return;
+    }
+
     float tau = fmaxf(*d->enc_filter_tau[encoder_index], 1e-6f);
     float dt = fmaxf(*d->enc_filter_dt[encoder_index], 1e-6f);
     filter[encoder_index].alpha = dt / (tau + dt);
@@ -255,9 +262,6 @@ static void update_encoder_velocity_from_deltas(module_data_t *d, uint8_t encode
     } else if (d->delta_time[encoder_index] > 2500000) {
         *d->enc_velocity[encoder_index] = 0;
         d->delta_pos[encoder_index] = 0.0f;
-    } else if (rx_buffer->encoder_velocity[encoder_index] != 0) {
-        float raw_vel = (float)rx_buffer->encoder_velocity[encoder_index] / *d->enc_scale[encoder_index];
-        *d->enc_velocity[encoder_index] = lpf_update(&filter[encoder_index], raw_vel);
     } else {
         d->delta_pos[encoder_index] = (float)d->delta_count_accum[encoder_index] / *d->enc_scale[encoder_index];
         *d->enc_velocity[encoder_index] = lpf_update(
@@ -266,8 +270,9 @@ static void update_encoder_velocity_from_deltas(module_data_t *d, uint8_t encode
         );
     }
 
-    // Firmware says stopped and velocity is negligible — snap to exact zero
-    if (rx_buffer->encoder_velocity[encoder_index] == 0 && fabsf(*d->enc_velocity[encoder_index]) < *d->enc_vel_threshold[encoder_index]) {
+    // Velocity is always computed from delta (encoder_velocity=0 from firmware).
+    // Snap to exact zero when the filtered value drops below threshold.
+    if (fabsf(*d->enc_velocity[encoder_index]) < *d->enc_vel_threshold[encoder_index]) {
         *d->enc_velocity[encoder_index] = 0.0f;
     }
 
@@ -699,6 +704,19 @@ void udp_io_process_recv(void *arg, long period)
         #if encoders > 0
             for (uint8_t i = 0; i < encoders; i++) {
                 if (*d->enc_scale[i] < 1.0f) *d->enc_scale[i] = 1.0f;
+                if (!*d->enc_enabled[i]) {
+                    *d->raw_count[i] = 0;
+                    *d->enc_position[i] = 0;
+                    *d->enc_velocity[i] = 0;
+                    *d->enc_rpm[i] = 0;
+                    d->delta_count[i] = 0;
+                    d->delta_count_accum[i] = 0;
+                    d->delta_time[i] = 0;
+                    d->delta_pos[i] = 0.0f;
+                    d->enc_timestamp[i] = 0;
+                    d->enc_prev_pos[i] = 0.0f;
+                    continue;
+                }
                 #if debug == 1
                     if (*d->enc_reset[i] == 1) {
                         d->enc_reset_pending |= CTRL_ENC_RESET(i);
@@ -752,11 +770,6 @@ void udp_io_process_recv(void *arg, long period)
                 *d->raw_count[i] = encoder_count;
                 d->delta_time[i] = encoder_ts - d->enc_timestamp[i];
                 d->delta_count_accum[i] = d->delta_count[i];
-                #if use_stepcounter == 0
-                    if (rx_buffer->encoder_velocity[i] != 0 || d->delta_count[i] == 0) {
-                        d->delta_count_accum[i] = rx_buffer->encoder_velocity[i];
-                    }
-                #endif
 
                 update_encoder_velocity_from_deltas(d, i);
 
@@ -808,6 +821,7 @@ static void udp_io_process_send(void *arg, long period)
     tx_buffer->enc_control = 0;
     for (int i = 0; i < encoders; i++) {
         tx_buffer->enc_control |= (uint8_t)(1 * d->index_triggered[i]) << (CTRL_SPINDEX + i);
+        tx_buffer->enc_control |= (*d->enc_enabled[i]) << (4 + i);
     }
     #if debug == 1
     tx_buffer->enc_control |= d->enc_reset_pending;
@@ -1100,6 +1114,7 @@ int rtapi_app_main(void)
             PIN_FLOAT_INIT(&hal_data[j].enc_filter_tau[i], HAL_IN, 0.020f, "%s" e_name ".%s.filter-tau", prefix, encoder_config[i].name);
             PIN_FLOAT_INIT(&hal_data[j].enc_filter_dt[i], HAL_IN, 0.001f, "%s" e_name ".%s.filter-dt", prefix, encoder_config[i].name);
             PIN_FLOAT_INIT(&hal_data[j].enc_vel_threshold[i], HAL_IN, 0.001f, "%s" e_name ".%s.vel-threshold", prefix, encoder_config[i].name);
+            PIN_BIT_INIT(&hal_data[j].enc_enabled[i], HAL_IN, 1, "%s" e_name ".%s.enabled", prefix, encoder_config[i].name);
             #if debug == 1
             PIN_BIT_INIT(&hal_data[j].enc_reset[i], HAL_IN, 0, "%s" e_name ".%s.debug-reset", prefix, encoder_config[i].name);
             hal_data[j].enc_prev_pos[i] = 0;

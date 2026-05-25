@@ -1,7 +1,6 @@
 #include "main.h"
-#include "quadrature_encoder_substep.h"
+#include "irq_encoder.h"
 #include "flexgpio.h"
-#define ENCODER_IDLE_STOP_SAMPLES 2500
 
 // Flexi-Ninja
 // Based on stepper-ninja by Viola Zsolt (atrex66@gmail.com)
@@ -102,29 +101,17 @@ PIO_def_t stepgen_pio[stepgens];
 
     static uint8_t enc_index_enabled[encoders] = {0,};
     PIO_def_t encoder_pio[encoders];
-
-    #if encoder_pio_version == ENCODER_PIO_SUBSTEP
-    substep_state_t substep_state[encoders];
-    #endif
+    static int32_t pio_enc_offset[encoders] = {0};
+    static uint8_t enc_irq_enabled[encoders] = {0};
 
     static inline void reset_encoder_counter(uint8_t i) {
+    if (irq_encoder_is_irq(&encoder_config[i])) {
+        irq_encoder_reset_count(i);
+        return;
+    }
 #if use_stepcounter == 0
         pio_sm_exec(encoder_pio[i].pio, encoder_pio[i].sm, pio_encode_set(pio_y, 0));
         encoder[i] = 0;
-        #if encoder_pio_version == ENCODER_PIO_SUBSTEP
-        substep_state[i].raw_step = 0;
-        substep_state[i].position = 0;
-        substep_state[i].speed = 0;
-        substep_state[i].speed_2_20 = 0;
-        substep_state[i].stopped = 1;
-        substep_state[i].idle_stop_sample_count = 0;
-        uint32_t now_us = time_us_32();
-        substep_state[i].prev_step_us = now_us;
-        substep_state[i].prev_trans_us = now_us;
-        substep_state[i].prev_trans_pos = 0;
-        substep_state[i].prev_low = 0;
-        substep_state[i].prev_high = 0;
-        #endif
 #else
         pio_sm_exec(pio1, i, pio_encode_set(pio_y, 0));
         encoder[i] = 0;
@@ -252,13 +239,15 @@ void core1_entry() {
     // initialize encoder index pins
     #if encoders > 0
         for (int i=0;i<encoder_count;i++){
-            if (encoder_config[i].index_pin!=PIN_NULL){
-                gpio_init(encoder_config[i].index_pin);
-                gpio_set_dir(encoder_config[i].index_pin, false);
-                printf("Encoder index %d pin %d initialized\n", i, encoder_config[i].index_pin);
-            }
+        if (encoder_config[i].index_pin!=PIN_NULL){
+            gpio_init(encoder_config[i].index_pin);
+            gpio_set_dir(encoder_config[i].index_pin, false);
+            printf("Encoder index %d pin %d initialized\n", i, encoder_config[i].index_pin);
         }
+    }
     #endif
+
+    irq_encoder_init(encoder_config, encoder_count, gpio_callback);
 
     while(1){
         if (LED_GPIO != PIN_NULL) gpio_put(LED_GPIO, !timeout_error);
@@ -276,8 +265,8 @@ void core1_entry() {
     #else
                         printf("Step counter %d reset\n", i);
     #endif
-                    }
-#endif
+        }
+    #endif
                 rx_counter = 0;
                 timeout_error = 1;
                 checksum_index = 1;
@@ -330,6 +319,22 @@ void core1_entry() {
                         }
                     }
                 }
+            #endif
+
+            #if defined(PICO_RP2350) && encoders > 0
+            // Enable/disable IRQ-based encoder edge counting based on enc_control
+            for (int i = 0; i < encoder_count; i++) {
+                if (encoder_config[i].base_pin >= 32) {
+                    bool want = (rx_buffer->enc_control >> (4 + i)) & 0x01u;
+                    if (want && !enc_irq_enabled[i]) {
+                        irq_encoder_enable((uint8_t)i);
+                        enc_irq_enabled[i] = 1;
+                    } else if (!want && enc_irq_enabled[i]) {
+                        irq_encoder_disable((uint8_t)i);
+                        enc_irq_enabled[i] = 0;
+                    }
+                }
+            }
             #endif
 
             #if stepgens > 0
@@ -554,6 +559,7 @@ int main() {
 
     #if encoders > 0
         #if use_stepcounter == 0
+
             for (int i = 0; i < encoders; i++) {
                 uint8_t encoder_program_len;
 
@@ -566,34 +572,26 @@ int main() {
                 gpio_pull_up(encoder_config[i].base_pin+1);
                 //tx_buffer->encoder_latched[i] = 0;
                 tx_buffer->encoder_velocity[i] = 0;
-                #if encoder_pio_version == ENCODER_PIO_SUBSTEP
-                encoder_program_len = quadrature_encoder_substep_len;
-                #else
-                encoder_program_len = quadrature_encoder_legacy_len;
+
+                #if defined(PICO_RP2350)
+                if (i == 1 && encoder_config[i].base_pin >= 32) {
+                    // ENC1 uses GPIO IRQ — no PIO SM needed
+                    encoder_pio[i].sm = 255;
+                    printf("encoder%d. SW IRQ encoder\n", i);
+                } else
                 #endif
-                encoder_pio[i] = get_next_pio(encoder_program_len);
-                if (encoder_pio[i].sm == 255){
-                    printf("Not enough pio state machines, check the config.h \n");
+                {
+                    encoder_pio[i] = get_next_pio(quadrature_encoder_legacy_len);
+                    if (encoder_pio[i].sm == 255) {
+                        printf("Not enough pio state machines, check the config.h \n");
+                    }
+                    if (pio_can_add_program_at_offset(encoder_pio[i].pio, &quadrature_encoder_program, 0)) {
+                        pio_add_program_at_offset(encoder_pio[i].pio, &quadrature_encoder_program, 0);
+                    }
+                    quadrature_encoder_program_init(encoder_pio[i].pio, encoder_pio[i].sm, encoder_config[i].base_pin, 0);
+                    pio_enc_offset[i] = quadrature_encoder_get_count(encoder_pio[i].pio, encoder_pio[i].sm);
+                    printf("encoder%d. pio:%d sm:%d init done...\n", i, encoder_pio[i].pio_blk, encoder_pio[i].sm);
                 }
-                printf("Encoder %d pre init\n", i);
-                #if encoder_pio_version == ENCODER_PIO_SUBSTEP
-                // Initialize substep encoder
-                substep_init_state(encoder_pio[i].pio, encoder_pio[i].sm, encoder_config[i].base_pin, &substep_state[i]);
-                // Default (3 samples) is too aggressive for low RPM and can
-                // force speed to zero between sparse transitions.
-                substep_state[i].idle_stop_samples = ENCODER_IDLE_STOP_SAMPLES;
-                printf("Encoder %d set calibration data ....\n", i);
-                // Set default calibration data - can be overridden later
-                substep_set_calibration_data(&substep_state[i], 64, 128, 192);
-                printf("encoder%d. pio:%d sm:%d init done (substep)...\n", i, encoder_pio[i].pio_blk, encoder_pio[i].sm);
-                #else
-                if (pio_can_add_program_at_offset(encoder_pio[i].pio, &quadrature_encoder_program, 0)) {
-                    pio_add_program_at_offset(encoder_pio[i].pio, &quadrature_encoder_program, 0);
-                }
-                quadrature_encoder_program_init(encoder_pio[i].pio, encoder_pio[i].sm, encoder_config[i].base_pin, 0);
-                encoder[i] = quadrature_encoder_get_count(encoder_pio[i].pio, encoder_pio[i].sm);
-                printf("encoder%d. pio:%d sm:%d init done (legacy)...\n", i, encoder_pio[i].pio_blk, encoder_pio[i].sm);
-                #endif
             }
         #else
             for (int i = 0; i < encoders; i++) {
@@ -798,30 +796,34 @@ void handle_data(){
                     if (!(enc_reset_done & (1u << i))) {
                         enc_reset_done |= (1u << i);
                         did_reset = true;
-                        #if encoder_pio_version == ENCODER_PIO_SUBSTEP
-                        substep_init_state(encoder_pio[i].pio, encoder_pio[i].sm, encoder_config[i].base_pin, &substep_state[i]);
-                        substep_state[i].idle_stop_samples = ENCODER_IDLE_STOP_SAMPLES;
-                        substep_set_calibration_data(&substep_state[i], 64, 128, 192);
-                        #else
-                        quadrature_encoder_program_init(encoder_pio[i].pio, encoder_pio[i].sm, encoder_config[i].base_pin, 0);
-                        encoder[i] = quadrature_encoder_get_count(encoder_pio[i].pio, encoder_pio[i].sm);
+                        #if defined(PICO_RP2350)
+                        if (encoder_config[i].base_pin >= 32) {
+                            irq_encoder_reset_count(i);
+                        } else
                         #endif
+                        {
+                            quadrature_encoder_program_init(encoder_pio[i].pio, encoder_pio[i].sm, encoder_config[i].base_pin, 0);
+                            pio_enc_offset[i] = quadrature_encoder_get_count(encoder_pio[i].pio, encoder_pio[i].sm);
+                        }
                     }
                 } else {
                     enc_reset_done &= ~(1u << i);
                 }
-                #if encoder_pio_version == ENCODER_PIO_SUBSTEP
                 tx_buffer->encoder_timestamp[i] = time_us_32();
-                substep_update(&substep_state[i]);
-                tx_buffer->encoder_counter[i] = did_reset ? 0 : substep_state[i].raw_step;
-                tx_buffer->encoder_velocity[i] = substep_state[i].stopped ? 0 : (substep_state[i].speed / 256);
-                #else
-                int32_t encoder_count = quadrature_encoder_get_count(encoder_pio[i].pio, encoder_pio[i].sm);
-                tx_buffer->encoder_timestamp[i] = time_us_32();
-                tx_buffer->encoder_counter[i] = did_reset ? 0 : encoder_count;
-                tx_buffer->encoder_velocity[i] = did_reset ? 0 : encoder_count - (int32_t)encoder[i];
-                encoder[i] = (uint32_t)(did_reset ? 0 : encoder_count);
+                #if defined(PICO_RP2350)
+                if (irq_encoder_is_irq(&encoder_config[i])) {
+                    bool reset_held = (enc_reset_done & (1u << i)) || did_reset;
+                    tx_buffer->encoder_counter[i] = reset_held ? 0 : irq_encoder_read_count(i);
+                    tx_buffer->encoder_velocity[i] = 0;
+                } else
                 #endif
+                {
+                    int32_t encoder_count = quadrature_encoder_get_count(encoder_pio[i].pio, encoder_pio[i].sm);
+                    bool reset_held = (enc_reset_done & (1u << i)) || did_reset;
+                    int32_t corrected = reset_held ? 0 : (encoder_count - pio_enc_offset[i]);
+                    tx_buffer->encoder_counter[i] = corrected;
+                    tx_buffer->encoder_velocity[i] = 0;
+                }
             }
         #else
             // update step counters
@@ -914,6 +916,7 @@ void __not_in_flash_func(gpio_callback)(uint gpio, uint32_t events) {
                 }
             }
         }
+        if (irq_encoder_handle_edge((uint8_t)i, gpio)) continue;
     }
 }
 #endif

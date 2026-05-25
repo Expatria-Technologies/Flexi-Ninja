@@ -61,9 +61,11 @@
     
     #define encoders 2
     // Base, index, index active level
+    // ENC1: board routing is z=GP45, b=GP46, a=GP47.
+    // Uses GPIO edge IRQ (no PIO). Pin swap corrected in gpio_callback().
     #define ENCODER_CONFIG { \
         {GP09, GP11, high, "ENC1"}, \
-        {GP45, GP47, high, "ENC2"}, \
+        {GP46, GP45, high, "ENC2"}, \
     }
 
     // GPIO, name, pullup
@@ -78,6 +80,9 @@
         {GP37, "Y_LIM", 1}, \
         {GP38, "X_LIM", 1}, \
         {GP39, "PROBE_IRQ", 1}, \
+        {GP47, "AUXIN0", 1}, \
+        {GP46, "AUXIN1", 1}, \
+        {GP45, "AUXIN2", 1}, \
     }
 
     #define out_pins {PIN_NULL}
@@ -149,10 +154,6 @@
     #define default_step_scale 1000 // default step scale in steps/unit for the stepgen if not specified in the HAL configuration
     
     #define use_timer_interrupt 0 // Use a timer interrupt with a 3-slot step ring buffer to smooth PC transmission jitter for step commands    
-
-    #ifndef encoder_pio_version
-    #define encoder_pio_version ENCODER_PIO_SUBSTEP // 0 = old quadrature encoder PIO, 1 = substep encoder PIO
-    #endif
 
 #include "footer.h"
 #endif

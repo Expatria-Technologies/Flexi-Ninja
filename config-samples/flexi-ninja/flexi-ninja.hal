@@ -1,7 +1,7 @@
 loadrt [KINS]KINEMATICS
 loadrt [EMCMOT]EMCMOT servo_period_nsec=[EMCMOT]SERVO_PERIOD num_joints=[KINS]JOINTS
 
-#Load HAL components
+# Load HAL components
    loadrt flexi-ninja
    loadrt estop_latch names=estop_latch
    loadrt and2 names=run_and,step_and,estop_and
@@ -10,7 +10,7 @@ loadrt [EMCMOT]EMCMOT servo_period_nsec=[EMCMOT]SERVO_PERIOD num_joints=[KINS]JO
    loadrt toggle names=hold_button_toggle
    loadrt toggle2nist names=hold_toggle,paused_toggle
 
-#Add HAL components to thread
+# Add HAL components to thread
    addf motion-command-handler servo-thread
    addf flexi-ninja.watchdog-process servo-thread
    addf flexi-ninja.process-send servo-thread
@@ -141,6 +141,13 @@ loadrt [EMCMOT]EMCMOT servo_period_nsec=[EMCMOT]SERVO_PERIOD num_joints=[KINS]JO
    setp flexi-ninja.encoder.ENC2.filter-tau [ENCODER_2]FILTER_TAU
    setp flexi-ninja.encoder.ENC2.filter-dt [ENCODER_2]FILTER_DT
    setp flexi-ninja.encoder.ENC2.vel-threshold [ENCODER_2]VEL_THRESHOLD
+
+# ENC2 uses GPIO IRQ counting. The A/B/Z pins are also available
+# as AUXIN0/1/2 for general-purpose input when the encoder is disabled:
+#   setp flexi-ninja.encoder.ENC2.enabled 0
+#   net aux0-signal <= flexi-ninja.input.AUXIN0
+#   net aux1-signal <= flexi-ninja.input.AUXIN1
+#   net aux2-signal <= flexi-ninja.input.AUXIN2
 
 # Motor enable outputs to board (non-inverted)
    net X-enable => flexi-ninja.output.X_EN
