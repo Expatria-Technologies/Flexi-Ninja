@@ -377,6 +377,16 @@ int main() {
         gpio_set_dir(LED_GPIO, GPIO_OUT);
     }
 
+#ifdef BOARD_FLEXI_2350
+    // GP28, GP29 = RS485 transceiver driven by Pi — set high-Z to avoid contention
+    gpio_init(GP28);
+    gpio_set_dir(GP28, GPIO_IN);
+    gpio_disable_pulls(GP28);
+    gpio_init(GP29);
+    gpio_set_dir(GP29, GPIO_IN);
+    gpio_disable_pulls(GP29);
+#endif
+
     src_ip = (uint8_t *)malloc(4);
     if (src_ip == NULL) {
         printf("src_ip allocation failed\n");
