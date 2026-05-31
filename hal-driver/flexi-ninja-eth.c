@@ -149,6 +149,7 @@ typedef struct {
     hal_float_t *debug_freq;
     hal_s32_t *debug_steps[stepgens];
     hal_bit_t *debug_steps_reset;
+    uint8_t enc_reset_pending;
 #endif
     hal_u32_t *period;
     hal_bit_t *probe_select;
@@ -580,7 +581,9 @@ void udp_io_process_recv(void *arg, long period)
             for (uint8_t i = 0; i < encoders; i++) {
                 #if debug == 1
                     if (*d->enc_reset[i] == 1) {
-                        *d->enc_reset[i] = 0;
+                        d->enc_reset_pending |= CTRL_ENC_RESET(i);
+                    } else {
+                        d->enc_reset_pending &= ~CTRL_ENC_RESET(i);
                     }
                 #endif
                 uint32_t encoder_ts = rx_buffer->encoder_timestamp[i];
@@ -682,6 +685,9 @@ static void udp_io_process_send(void *arg, long period)
         tx_buffer->enc_control |= (uint8_t)(1 * d->index_triggered[i]) << (CTRL_SPINDEX + i);
         tx_buffer->enc_control |= (*d->enc_enabled[i]) << (4 + i);
     }
+    #if debug == 1
+    tx_buffer->enc_control |= d->enc_reset_pending;
+    #endif
     #endif
 
     if (d->watchdog_running == 1) {
