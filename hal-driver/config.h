@@ -1,1 +1,1 @@
-/media/NAS/Repositories/Personal/stepper-ninja/firmware/include/config.h
+/media/NAS/Repositories/Personal/flexi-ninja/firmware/include/config.h

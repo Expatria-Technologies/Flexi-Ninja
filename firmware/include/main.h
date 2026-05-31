@@ -32,6 +32,7 @@
 #include "freq_generator.pio.h"
 #include "pio_utils.h"
 #include "config.h"
+#include "rp2040_ram_loader.h"
 
 #if use_stepcounter == 0
 #include "quadrature_encoder.pio.h"

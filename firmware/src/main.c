@@ -484,8 +484,16 @@ int main() {
 
     #endif
     
-    multicore_launch_core1(core1_entry);
+    if (rp2040_boot_flexgpio() != 0) {
+        printf("FATAL: RP2040 boot failed — halting\n");
+        for (;;);
+    }
+    printf("RP2040 boot OK\n");
+
     flexgpio_init();
+    printf("flexgpio init OK\n");
+
+    multicore_launch_core1(core1_entry);
 
     PIO pio = pio0;
     int p = 0;
@@ -622,6 +630,7 @@ int main() {
 
     // init the firsat tx_buffer checksum because of the full duplex communication with the pico.
     tx_buffer->checksum = calculate_checksum(tx_buffer, tx_size - 1);
+    printf("tx checksum OK\n");
 
     printf("Pio init done....\n");
 

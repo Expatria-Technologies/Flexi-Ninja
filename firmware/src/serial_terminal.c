@@ -10,6 +10,7 @@
 #include "internals.h"
 #include "config.h"
 #include "hardware/i2c.h"
+#include "rp2040_ram_loader.h"
 
 char buffer[64];
 int buffer_pos = 0;
@@ -210,6 +211,10 @@ void process_command(char* command) {
                 printf("Device found at address: 0x%02X\n", addr);
             }
         }
+    } else if (strcmp(command, "rp2040_reload") == 0) {
+        printf("Reloading RP2040...\n");
+        int ret = rp2040_reload_flexgpio();
+        printf("%s\n", ret == 0 ? "OK" : "FAILED: RP2040 did not respond");
     } else if (strcmp(command, "inputs") == 0) {
         printf("Input states:\n");
         printf("Input %04X\n", input_buffer[0]);

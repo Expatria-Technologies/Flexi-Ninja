@@ -1,1 +1,1 @@
-/media/NAS/Repositories/Personal/stepper-ninja/firmware/include/footer.h
+/media/NAS/Repositories/Personal/flexi-ninja/firmware/include/footer.h
