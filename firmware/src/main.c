@@ -428,12 +428,12 @@ int main() {
         //                clock_get_hz(clk_sys),
         //                clock_get_hz(clk_sys));
 
-        spi_init(spi0, 40000000);
+        spi_init(SPI_PORT, 40000000);
 
         // force spi clock speed
         #if pico_clock == 125000000
-            hw_write_masked(&spi_get_hw(spi0)->cr0, (0) << SPI_SSPCR0_SCR_LSB, SPI_SSPCR0_SCR_BITS); // SCR = 0
-            hw_write_masked(&spi_get_hw(spi0)->cpsr, 4, SPI_SSPCPSR_CPSDVSR_BITS); // CPSDVSR = 4
+            hw_write_masked(&spi_get_hw(SPI_PORT)->cr0, (0) << SPI_SSPCR0_SCR_LSB, SPI_SSPCR0_SCR_BITS); // SCR = 0
+            hw_write_masked(&spi_get_hw(SPI_PORT)->cpsr, 4, SPI_SSPCPSR_CPSDVSR_BITS); // CPSDVSR = 4
         #endif
     #endif
     
@@ -466,13 +466,13 @@ int main() {
 
     dma_channel_config_tx = dma_channel_get_default_config(dma_tx);
     channel_config_set_transfer_data_size(&dma_channel_config_tx, DMA_SIZE_8);
-    channel_config_set_dreq(&dma_channel_config_tx, DREQ_SPI1_TX);
+    channel_config_set_dreq(&dma_channel_config_tx, spi_get_dreq(SPI_PORT, true));
     channel_config_set_read_increment(&dma_channel_config_tx, true);
     channel_config_set_write_increment(&dma_channel_config_tx, false);
 
     dma_channel_config_rx = dma_channel_get_default_config(dma_rx);
     channel_config_set_transfer_data_size(&dma_channel_config_rx, DMA_SIZE_8);
-    channel_config_set_dreq(&dma_channel_config_rx, DREQ_SPI1_RX);
+    channel_config_set_dreq(&dma_channel_config_rx, spi_get_dreq(SPI_PORT, false));
     channel_config_set_read_increment(&dma_channel_config_rx, false);
     channel_config_set_write_increment(&dma_channel_config_rx, true);
 
@@ -1090,11 +1090,11 @@ void w5100s_init() {
 
     dma_channel_config_tx = dma_channel_get_default_config(dma_tx);
     channel_config_set_transfer_data_size(&dma_channel_config_tx, DMA_SIZE_8);
-    channel_config_set_dreq(&dma_channel_config_tx, DREQ_SPI0_TX);
+    channel_config_set_dreq(&dma_channel_config_tx, spi_get_dreq(SPI_PORT, true));
 
     dma_channel_config_rx = dma_channel_get_default_config(dma_rx);
     channel_config_set_transfer_data_size(&dma_channel_config_rx, DMA_SIZE_8);
-    channel_config_set_dreq(&dma_channel_config_rx, DREQ_SPI0_RX);
+    channel_config_set_dreq(&dma_channel_config_rx, spi_get_dreq(SPI_PORT, false));
     channel_config_set_read_increment(&dma_channel_config_rx, false);
     channel_config_set_write_increment(&dma_channel_config_rx, true);
 
