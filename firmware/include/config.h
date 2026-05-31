@@ -7,13 +7,15 @@
     // ** if you want to use pins instead of GPIO use PIN_1, PIN_2, PIN_4, ... **
     // **************************************************************************
 
-    // default network settings after you flash the PICO
+    // default network settings after you flash the MCU. 
+    // CONFIG_VERSION to be incremented if defaults have changed and we want to ignore what is in flash.
+    #define CONFIG_VERSION 1
     #define DEFAULT_MAC {0x00, 0x08, 0xDC, 0x12, 0x34, 0x56}
     #define DEFAULT_IP {192, 168, 5, 1}
     #define DEFAULT_PORT 8888
     #define DEFAULT_GATEWAY {192, 168, 5, 254}
     #define DEFAULT_SUBNET {255, 255, 255, 0}
-    // timeout for detecting disconnection from linuxcnc
+    // timeout for detecting disconnection from linuxcnc, in us. 1 second. 
     #define DEFAULT_TIMEOUT 1000000
 
     typedef struct {
@@ -131,13 +133,23 @@
     }
 
     // SPI port definition (GPIO)
-    #define SPI_PORT        spi1
-    #define GPIO_MISO       GP43
-    #define GPIO_CS         GP41
-    #define GPIO_SCK        GP42
-    #define GPIO_MOSI       GP40
-    #define GPIO_RESET      GP00
-    #define GPIO_INT        GP08
+    #ifdef _WIZCHIP_
+        #define SPI_PORT        spi0
+        #define GPIO_SCK        GP02
+        #define GPIO_MOSI       GP03
+        #define GPIO_MISO       GP00
+        #define GPIO_CS         GP33
+        #define GPIO_RESET      PIN_NULL
+        #define GPIO_INT        GP25
+    #else
+        #define SPI_PORT        spi1
+        #define GPIO_SCK        GP42
+        #define GPIO_MOSI       GP40
+        #define GPIO_MISO       GP43
+        #define GPIO_CS         GP41
+        #define GPIO_RESET      PIN_NULL
+        #define GPIO_INT        GP08
+    #endif
     #define LED_GPIO        PIN_NULL
 
     #define use_flexgpio 1

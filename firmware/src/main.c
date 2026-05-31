@@ -63,7 +63,9 @@ uint8_t rx_counter=0;
 
 uint16_t rx_size = sizeof(transmission_pc_pico_t);
 uint16_t tx_size = sizeof(transmission_pico_pc_t);
+#ifdef RASPBERRY_PI_SPI
 static uint8_t spi_rx_frame[SPI_TRANSFER_SIZE];
+#endif
 
 uint8_t sety = 0;
 uint8_t nop = 0;
@@ -429,12 +431,7 @@ int main() {
         //                clock_get_hz(clk_sys));
 
         spi_init(SPI_PORT, 40000000);
-
-        // force spi clock speed
-        #if pico_clock == 125000000
-            hw_write_masked(&spi_get_hw(SPI_PORT)->cr0, (0) << SPI_SSPCR0_SCR_LSB, SPI_SSPCR0_SCR_BITS); // SCR = 0
-            hw_write_masked(&spi_get_hw(SPI_PORT)->cpsr, 4, SPI_SSPCPSR_CPSDVSR_BITS); // CPSDVSR = 4
-        #endif
+        spi_set_format(SPI_PORT, 8, SPI_CPOL_1, SPI_CPHA_1, SPI_MSB_FIRST);
     #endif
     
     // load network config from the flash
@@ -1067,9 +1064,11 @@ void w5100s_init() {
     gpio_set_dir(GPIO_CS, GPIO_OUT);
     cs_deselect();
 
+#if GPIO_RESET != PIN_NULL
     gpio_init(GPIO_RESET);
     gpio_set_dir(GPIO_RESET, GPIO_OUT);
     gpio_put(GPIO_RESET, 1);
+#endif
 
     gpio_set_function(GPIO_SCK, GPIO_FUNC_SPI);
     gpio_set_function(GPIO_MOSI, GPIO_FUNC_SPI);
@@ -1080,10 +1079,12 @@ void w5100s_init() {
     
     reg_wizchip_spiburst_cbfunc(spi_read_burst, spi_write_burst);
 
+#if GPIO_RESET != PIN_NULL
     gpio_put(GPIO_RESET, 0);
     sleep_ms(10);
     gpio_put(GPIO_RESET, 1);
     sleep_ms(50);
+#endif
 
     dma_tx = dma_claim_unused_channel(true);
     dma_rx = dma_claim_unused_channel(true);
@@ -1125,7 +1126,7 @@ void w5100s_init() {
     printf("Subnet: %d.%d.%d.%d\n", net_info.sn[0], net_info.sn[1], net_info.sn[2], net_info.sn[3]);
     printf("Gateway: %d.%d.%d.%d\n", net_info.gw[0], net_info.gw[1], net_info.gw[2], net_info.gw[3]);
     printf("DNS: %d.%d.%d.%d\n", net_info.dns[0], net_info.dns[1], net_info.dns[2], net_info.dns[3]);
-    printf("DHCP: %d   (1-Static, 2-Dinamic)\n", net_info.dhcp);
+    printf("DHCP: %d   (1-Static, 2-Dynamic)\n", net_info.dhcp);
     printf("PORT: %d\n", port);
     printf("*******************PHY status**************\n");
     printf("PHY Mode: %s\n", phyconf.mode == PHY_MODE_AUTONEGO ? "Auto" : "Manual");
@@ -1155,17 +1156,17 @@ static void spi_read_burst(uint8_t *pBuf, uint16_t len)
     dma_channel_configure(dma_tx, &dma_channel_config_tx,
                           &spi_get_hw(SPI_PORT)->dr,
                           &dummy_data,              
-                          len,                      
-                          false);                   
+                          len,
+                          false);
 
     channel_config_set_read_increment(&dma_channel_config_rx, false);
     channel_config_set_write_increment(&dma_channel_config_rx, true);
     channel_config_set_transfer_data_size(&dma_channel_config_rx, DMA_SIZE_8);
     dma_channel_configure(dma_rx, &dma_channel_config_rx,
-                          pBuf,                     
+                          pBuf,
                           &spi_get_hw(SPI_PORT)->dr,
-                          len,                      
-                          false);                   
+                          len,
+                          false);
 
     dma_start_channel_mask((1u << dma_tx) | (1u << dma_rx));
     dma_channel_wait_for_finish_blocking(dma_rx);
@@ -1179,17 +1180,17 @@ static void spi_write_burst(uint8_t *pBuf, uint16_t len)
     channel_config_set_write_increment(&dma_channel_config_tx, false);
     dma_channel_configure(dma_tx, &dma_channel_config_tx,
                           &spi_get_hw(SPI_PORT)->dr,
-                          pBuf,                     
-                          len,                      
-                          false);                   
+                          pBuf,
+                          len,
+                          false);
 
     channel_config_set_read_increment(&dma_channel_config_rx, false);
     channel_config_set_write_increment(&dma_channel_config_rx, false);
     dma_channel_configure(dma_rx, &dma_channel_config_rx,
                           &dummy_data,              
                           &spi_get_hw(SPI_PORT)->dr,
-                          len,                      
-                          false);                   
+                          len,
+                          false);
 
     dma_start_channel_mask((1u << dma_tx) | (1u << dma_rx));
     dma_channel_wait_for_finish_blocking(dma_rx);

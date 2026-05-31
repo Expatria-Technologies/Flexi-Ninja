@@ -25,6 +25,7 @@ const configuration_t default_config = {
     .dhcp = 1,
     .port = DEFAULT_PORT,
     .timeout = DEFAULT_TIMEOUT,
+    .cfg_version = CONFIG_VERSION,
     .checksum = 0
 };
 
@@ -121,9 +122,10 @@ void load_config_from_flash() {
     }
     memcpy(flash_config, (configuration_t *)(XIP_BASE + FLASH_TARGET_OFFSET), sizeof(configuration_t));
     uint8_t checksum = calculate_checksum_flash(flash_config);
-    if (checksum != flash_config->checksum){
-        printf("Invalid checksum restoring default configuration.\n");
-        printf("Checksum: %02X, Flash Checksum: %02X\n", checksum, flash_config->checksum);
+    if (checksum != flash_config->checksum || flash_config->cfg_version != CONFIG_VERSION){
+        printf("Invalid checksum or version mismatch restoring default configuration.\n");
+        printf("Checksum: %02X, Flash Checksum: %02X, Version: %u, Expected: %u\n",
+               checksum, flash_config->checksum, flash_config->cfg_version, CONFIG_VERSION);
         for (int i = 0; i < sizeof(configuration_t); i++) {
             printf(" %02X", ((uint8_t *)flash_config)[i]);
         }
