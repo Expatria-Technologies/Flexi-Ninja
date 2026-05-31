@@ -133,7 +133,7 @@
     }
 
     // SPI port definition (GPIO)
-    #ifdef _WIZCHIP_
+    #ifndef RASPBERRY_PI_SPI
         #define SPI_PORT        spi0
         #define GPIO_SCK        GP02
         #define GPIO_MOSI       GP03
