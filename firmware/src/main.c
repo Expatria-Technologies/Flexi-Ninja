@@ -373,14 +373,18 @@ void core1_entry() {
 
 int main() {
 
+#ifdef RASPBERRY_PI_SPI
+    stdio_uart_init();
+#else
     stdio_init_all();
+#endif
     if (LED_GPIO != PIN_NULL) {
         gpio_init(LED_GPIO);
         gpio_set_dir(LED_GPIO, GPIO_OUT);
     }
 
 #ifdef BOARD_FLEXI_2350
-    // GP28, GP29 = RS485 transceiver driven by Pi — set high-Z to avoid contention
+    // GP28, GP29 = RS485 transceiver driven by Pi - set high-Z to avoid contention
     gpio_init(GP28);
     gpio_set_dir(GP28, GPIO_IN);
     gpio_disable_pulls(GP28);
@@ -482,7 +486,7 @@ int main() {
     #endif
     
     if (rp2040_boot_flexgpio() != 0) {
-        printf("FATAL: RP2040 boot failed — halting\n");
+        printf("FATAL: RP2040 boot failed - halting\n");
         for (;;);
     }
     printf("RP2040 boot OK\n");
@@ -590,7 +594,7 @@ int main() {
 
                 #if defined(PICO_RP2350)
                 if (i == 1 && encoder_config[i].base_pin >= 32) {
-                    // ENC1 uses GPIO IRQ — no PIO SM needed
+                    // ENC1 uses GPIO IRQ - no PIO SM needed
                     encoder_pio[i].sm = 255;
                     printf("encoder%d. SW IRQ encoder\n", i);
                 } else

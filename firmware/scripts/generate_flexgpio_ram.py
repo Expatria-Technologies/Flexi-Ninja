@@ -14,7 +14,7 @@ else:
 
     c_path = os.path.join(env.subst("$PROJECTSRC_DIR"), "flexgpio_ram.c")
     with open(c_path, "w") as f:
-        f.write("// Auto-generated — do not edit\n")
+        f.write("// Auto-generated - do not edit\n")
         f.write("#include <stdint.h>\n\n")
         f.write(f"const uint8_t flexgpio_ram_bin[{len(data)}] = {{\n")
         for i in range(0, len(data), 16):
