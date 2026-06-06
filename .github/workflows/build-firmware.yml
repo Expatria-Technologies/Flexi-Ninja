@@ -40,8 +40,8 @@ jobs:
         with:
           name: firmware-${{ matrix.env }}
           path: |
-            firmware/.pio/build/${{ matrix.env }}/*.uf2
-            firmware/.pio/build/${{ matrix.env }}/*.elf
+            firmware/.pio/build/${{ matrix.env }}/Flexi-Ninja*.uf2
+            firmware/.pio/build/${{ matrix.env }}/Flexi-Ninja*.elf
 
   release:
     needs: build
