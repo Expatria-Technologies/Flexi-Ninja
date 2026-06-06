@@ -16,7 +16,7 @@ jobs:
           submodules: recursive
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.11'
 
@@ -24,7 +24,7 @@ jobs:
         run: pip install platformio
 
       - name: Cache PlatformIO
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.platformio
@@ -36,7 +36,7 @@ jobs:
         working-directory: firmware
 
       - name: Upload firmware artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: firmware-${{ matrix.env }}
           path: |
@@ -50,9 +50,14 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: artifacts
+
+      - name: Flatten artifacts
+        run: |
+          mkdir flat
+          find artifacts -type f -name "Flexi-Ninja*" -exec cp {} flat/ \;
 
       - uses: ncipollo/release-action@v1
         with:
@@ -60,7 +65,7 @@ jobs:
           name: Rolling Build
           body: |
             Automated rolling build from `${{ github.sha }}`
-          artifacts: artifacts/**/*
+          artifacts: flat/*
           allowUpdates: true
           prerelease: true
           removeArtifacts: true
