@@ -3,7 +3,7 @@ import os
 Import("env")
 
 project_dir = env.subst("$PROJECT_DIR")
-bin_path = os.path.join(project_dir, os.pardir, os.pardir,
+bin_path = os.path.join(project_dir, os.pardir,
                         "FlexGPIO", "build", "FlexGPIO_ram.bin")
 
 if not os.path.exists(bin_path):

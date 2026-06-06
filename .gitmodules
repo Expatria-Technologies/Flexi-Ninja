@@ -1,0 +1,4 @@
+[submodule "FlexGPIO"]
+	path = FlexGPIO
+	url = https://github.com/Expatria-Technologies/FlexGPIO
+	branch = ram_bootloader
