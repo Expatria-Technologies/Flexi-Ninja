@@ -3,32 +3,31 @@
 set -e
 
 DEFAULT_TCL_DIR="/usr/local/share/openocd/scripts"
-DEFAULT_RP2040_ELF="/home/expatria/flexi-ninja/builds/FlexGPIO/FlexGPIO.elf"
+DEFAULT_RP2040_BOOTLOADER="/home/expatria/FlexGPIO_Bootloader/build/FlexGPIO_bootloader.elf"
 DEFAULT_RP2350_ELF="/home/expatria/flexi-ninja/builds/flexi-ninja-spi.elf"
-MODE="both"
+MODE="rp2350"
 NUKE_MODE=false
-USER_ELF=""
+RP2040_BOOTLOADER_MODE=false
 TCL_DIR="$DEFAULT_TCL_DIR"
 
 usage() {
     cat <<EOF
-Flash RP2040 and/or RP2350 firmware over SWD via Raspberry Pi GPIO header.
+Flash RP2350 firmware or RP2040 FlexGPIO Bootloader over SWD via Raspberry Pi GPIO header.
 
 Usage: $(basename "$0") [options]
 
 Options:
-  -e, --elf <path>    Firmware ELF for the selected target (defaults per target below)
-  -s, --tcl <dir>     OpenOCD TCL scripts directory (default: $DEFAULT_TCL_DIR)
-  --rp2350            Flash RP2350 only
-  --rp2040            Flash RP2040 only
-  --nuke              Flash flash_nuke to both targets (wipes flash)
-  -h, --help          Show this help
+  -s, --tcl <dir>              OpenOCD TCL scripts directory (default: $DEFAULT_TCL_DIR)
+  --rp2350                     Flash RP2350 only (default)
+  --rp2040-bootloader <path>   Flash FlexGPIO Bootloader to RP2040
+  --nuke                       Flash flash_nuke to target (wipes flash)
+  -h, --help                   Show this help
 
-Default (no --rp2350/--rp2040) flashes RP2040 first, then RP2350.
+Default (no flags) flashes RP2350.
 
 Default firmware paths:
-  RP2040: $DEFAULT_RP2040_ELF
   RP2350: $DEFAULT_RP2350_ELF
+  RP2040 Bootloader: $DEFAULT_RP2040_BOOTLOADER
 
 GPIO mapping:
   RP2040:  SWDIO = GPIO6 (pin 31), SWCLK = GPIO13 (pin 33)
@@ -40,33 +39,21 @@ EOF
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        -e|--elf) USER_ELF="$2"; shift 2 ;;
         -s|--tcl) TCL_DIR="$2"; shift 2 ;;
         --rp2350) MODE="rp2350"; shift ;;
-        --rp2040) MODE="rp2040"; shift ;;
+        --rp2040-bootloader) RP2040_BOOTLOADER_MODE=true; RP2040_BOOTLOADER_ELF="$2"; shift 2 ;;
         --nuke) NUKE_MODE=true; shift ;;
         -h|--help) usage ;;
         *) echo "Unknown option: $1"; usage ;;
     esac
 done
 
-# Resolve firmware paths per target
-if $NUKE_MODE; then
-    RP2040_ELF="/home/expatria/flexi-ninja/builds/flash_nuke/flash_nuke_2040.elf"
+# Resolve firmware path
+if $RP2040_BOOTLOADER_MODE; then
+    RP2040_ELF="$RP2040_BOOTLOADER_ELF"
+elif $NUKE_MODE; then
     RP2350_ELF="/home/expatria/flexi-ninja/builds/flash_nuke/flash_nuke_2350.elf"
-elif [[ -n "$USER_ELF" ]]; then
-    if [[ $MODE == "both" ]]; then
-        echo "Error: -e/--elf requires --rp2040 or --rp2350 to specify which target"
-        exit 1
-    elif [[ $MODE == "rp2040" ]]; then
-        RP2040_ELF="$USER_ELF"
-        RP2350_ELF="$DEFAULT_RP2350_ELF"
-    else
-        RP2040_ELF="$DEFAULT_RP2040_ELF"
-        RP2350_ELF="$USER_ELF"
-    fi
 else
-    RP2040_ELF="$DEFAULT_RP2040_ELF"
     RP2350_ELF="$DEFAULT_RP2350_ELF"
 fi
 
@@ -92,13 +79,12 @@ if [[ ! -d "$TCL_DIR" ]]; then
     exit 1
 fi
 
-if [[ $MODE == "both" || $MODE == "rp2040" ]]; then
+if $RP2040_BOOTLOADER_MODE; then
     if [[ ! -f "$TCL_DIR/target/rp2040.cfg" ]]; then
         echo "Error: target/rp2040.cfg not found in $TCL_DIR"
         exit 1
     fi
-fi
-if [[ $MODE == "both" || $MODE == "rp2350" ]]; then
+elif [[ $MODE == "rp2350" ]]; then
     if [[ ! -f "$TCL_DIR/target/rp2350.cfg" ]]; then
         echo "Error: target/rp2350.cfg not found in $TCL_DIR"
         exit 1
@@ -249,11 +235,11 @@ fi
 
 echo ""
 
-if [[ $MODE == "both" || $MODE == "rp2040" ]]; then
-    flash_target "$RP2040_ELF" "target/rp2040.cfg" 6 13 "RP2040 (FlexGPIO)"
-fi
-
-if [[ $MODE == "both" || $MODE == "rp2350" ]]; then
+if $RP2040_BOOTLOADER_MODE; then
+    flash_target "$RP2040_ELF" "target/rp2040.cfg" 6 13 "RP2040 (FlexGPIO Bootloader)"
+elif $NUKE_MODE; then
+    flash_target "$RP2350_ELF" "target/rp2350.cfg" 23 24 "RP2350 (nuke)"
+else
     flash_target "$RP2350_ELF" "target/rp2350.cfg" 23 24 "RP2350 (stepper-ninja)"
 fi
 
