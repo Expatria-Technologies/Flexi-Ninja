@@ -2,3 +2,7 @@
 	path = FlexGPIO
 	url = https://github.com/Expatria-Technologies/FlexGPIO
 	branch = ram_bootloader
+
+[submodule "firmware/lib/ioLibrary_Driver"]
+	path = firmware/lib/ioLibrary_Driver
+	url = https://github.com/Wiznet/ioLibrary_Driver.git
