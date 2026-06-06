@@ -1,0 +1,66 @@
+name: Build Firmware
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        env: [flexi-2350_spi, flexi-2350_w5500]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install PlatformIO
+        run: pip install platformio
+
+      - name: Cache PlatformIO
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.platformio
+            firmware/.pio
+          key: pio-${{ matrix.env }}-${{ hashFiles('firmware/platformio.ini') }}
+
+      - name: Build ${{ matrix.env }}
+        run: pio run -e ${{ matrix.env }}
+        working-directory: firmware
+
+      - name: Upload firmware artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-${{ matrix.env }}
+          path: |
+            firmware/.pio/build/${{ matrix.env }}/*.uf2
+            firmware/.pio/build/${{ matrix.env }}/*.elf
+
+  release:
+    needs: build
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - uses: ncipollo/release-action@v1
+        with:
+          tag: rolling
+          name: Rolling Build
+          body: |
+            Automated rolling build from `${{ github.sha }}`
+          artifacts: artifacts/**/*
+          allowUpdates: true
+          prerelease: true
+          removeArtifacts: true
