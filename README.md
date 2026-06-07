@@ -6,7 +6,7 @@
 Flexi-Ninja is a fork of [stepper-ninja](https://github.com/atrex66/stepper-ninja) for Expatria's hardware. Flexi-Ninja replaces the breakout board abstraction with a PlatformIO based build system and board definitions in `config.h`. 
 
 Different in this fork from upstream stepper-ninja:
-- Well-defined I/O with intuitive HAL pin names 
+- Fixed I/O with intuitive HAL pin names that match PCB 
 - PIO-based step generation with added position feedback to LinuxCNC for closed-loop tracking
 - Configurable DIR pin setup time per axis via HAL pin to meet stepper driver timing requirements
 - FlexGPIO I2C IO expander Used for alarm inputs, tool/probe sensors, axis enables, coolant, spindle, and auxiliary outputs
@@ -49,7 +49,7 @@ A reference LinuxCNC configuration is included in [`config-samples/flexi-ninja/`
 Every input pin has an inverted `-not` companion pin (e.g. `flexi-ninja.input.HALT-not`) to simplify HAL wiring. Use these if you need an inverted input rather than trying to invert it with separate components. 
 
 ## HAL Pinout
-This diagram shows which HAL pins correspond to which connectors:
+This diagram shows which HAL pins correspond to which connectors on the FlexiHAL 2350:
 
 <img src="./readme_images/HAL_Pins.png" width="900">
 
@@ -83,6 +83,8 @@ cd hal-driver
 ```
 
 This builds and installs both `flexi-ninja.so` (SPI) and `flexi-ninja-eth.so` (Ethernet-only) to `/usr/lib/linuxcnc/modules/`. There is no harm in installing both regardless of which one you are using.
+
+--- 
 
 ## License
 
