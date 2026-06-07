@@ -71,9 +71,16 @@ void flexgpio_push_outputs(const uint32_t *outputs)
     output_packet_t out;
     out.value = outputs[0];
     out.mcu_irq_mask = EX_INPUT_MASK;
-    out.probe_irq_mask = (outputs[0] & (1u << 31)) ? (1u << 3) : (1u << 4);
+    uint32_t probe_mask = (outputs[0] & (1u << 31)) ? (1u << 3) : (1u << 4);
+    out.probe_irq_mask = probe_mask;
     out.value &= ~(1u << 31);
     flexgpio_write(&out);
+
+    static uint32_t last_probe_mask = 0;
+    if (probe_mask != last_probe_mask) {
+        flexgpio_pending = true;
+        last_probe_mask = probe_mask;
+    }
 }
 
 #endif
