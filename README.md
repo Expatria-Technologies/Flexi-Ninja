@@ -25,7 +25,7 @@ Note that FlexiHAL 2350 board rev A3.1 will require an interposer for the Pi hea
 
 **Recommended**: Use the `flash_firmware` script to flash both MCUs on the board via the Pi header.
 
-**Alternate**: USB drag-and-drop using the UF2 bootloaders in the RP2350 and RP2040. You will need to be sure you flash both the RP2350 that runs the main firmware and the RP2040 which is used for FlexGPIO. There are reaset and boot buttons for each MCU on the edge of the PCB near the USBC connector.
+**Alternate**: USB drag-and-drop using the UF2 bootloaders in the RP2350 and RP2040. You will need to be sure you flash both the RP2350 that runs the main firmware and the RP2040 which is used for FlexGPIO. There are reset and boot buttons for each MCU on the edge of the PCB near the USBC connector.
 
 
 ## Reference Config
