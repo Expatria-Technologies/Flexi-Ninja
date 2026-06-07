@@ -19,7 +19,7 @@ Using the SPI build of this firmware is recommended. To use this with LinuxCNC r
 
 - [FlexiHAL 2350](https://github.com/Expatria-Technologies/FlexiHAL_2350) 
 
-Note that FlexiHAL 2350 board rev A3.1 will require an interposer for the Pi header, which will be provided with your board. Boards newer than A3.1 will not require the interposer. If using the interposer, you will need to add `spi_bus=1` to the `loadrt flexi-ninja` line, so it reads `loadrt flexi-ninja spi_bus=1`.
+Note that FlexiHAL 2350 board rev A3.1 will require an interposer for the Pi header, which will be provided with your board. Boards newer than A3.1 will not require the interposer. If using the interposer, you will need to add `spi_bus=1` to the `loadrt flexi-ninja` line, so it reads `loadrt flexi-ninja spi_bus=1`. With the interposer, the FlexGPIO bootloader will need to be installed on the RP2040 with its USB port rather than the flashing script. This will only need to be done once at initial setup.
 
 ## Flashing
 
