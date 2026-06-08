@@ -3,6 +3,7 @@ loadrt [EMCMOT]EMCMOT servo_period_nsec=[EMCMOT]SERVO_PERIOD num_joints=[KINS]JO
 
 # Load HAL components
    loadrt flexi-ninja
+  #loadrt flexi-ninja spi_bus=1 # If you have a rev A3.1 board with an interposer, remove the above loadrt line and uncomment this one. 
    loadrt estop_latch names=estop_latch
    loadrt and2 names=run_and,step_and,estop_and
    loadrt not names=estop_not
