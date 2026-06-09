@@ -71,7 +71,7 @@ PlatformIO is used for the firmware build system, it is recommended to use the P
 | Environment | Communication | Command |
 |-------------|--------------|---------|
 | `flexi-2350_spi` | Direct SPI slave to Pi **(recommended)** | `pio run -e flexi-2350_spi` |
-| `flexi-2350_w5500` | Ethernet via W5500  **(not yet complete)** | `pio run -e flexi-2350_w5500` |
+| `flexi-2350_w5500` | Ethernet via W5500 | `pio run -e flexi-2350_w5500` |
 
 ## Building HAL Driver
 
