@@ -2,6 +2,22 @@ import os
 import subprocess
 import sys
 
+# Detect environment name when run as a PlatformIO extra_script
+try:
+    Import("env")
+    env_name = env.subst("$PIOENV")
+except NameError:
+    env_name = None
+
+print(f"Environment: {env_name}")
+
+# RP2040 (PIO V0) vs RP2350 (PIO V1)
+pio_version = "0"
+if env_name and env_name.startswith("flexi-2350"):
+    pio_version = "1"
+
+print(f"PIO version: {pio_version}")
+
 # Get the project directory
 # When run as a PlatformIO extra_script, we need to handle both cases
 if "__file__" in dir():
@@ -47,7 +63,7 @@ for pio_file, header_file in pio_files:
         print(f"Generating {header_file} from {pio_file}")
         try:
             result = subprocess.run(
-                [pioasm, pio_path, header_path],
+                [pioasm, "-v", pio_version, pio_path, header_path],
                 capture_output=True,
                 text=True,
                 check=True

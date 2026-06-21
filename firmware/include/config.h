@@ -159,7 +159,55 @@
     #define FLEXGPIO_ADDR   0x48
     #define PROBE_SELECT_BIT 31
 
+    #define pico_clock 150000000
+
 #endif // BOARD_FLEXI_2350
+
+#ifdef BOARD_PICOBOB_DLX
+
+    #define stepgens 5
+    #define STEPGEN_CONFIG { \
+        {GP22, GP09, 0}, \
+        {GP23, GP10, 0}, \
+        {GP24, GP11, 0}, \
+        {GP25, GP12, 0}, \
+        {GP26, GP13, 0}, \
+    }
+
+    #define encoders 0
+
+    #define pico_clock 125000000
+
+    #define INPUT_PINS { \
+        {GP01, "Y_LIM", 1}, \
+        {GP02, "X_LIM", 1}, \
+        {GP05, "Z_LIM", 1}, \
+        {GP03, "HALT", 1}, \
+        {GP04, "PROBE", 1}, \
+        {GP15, "HALT_KEYPAD", 1}, \
+    }
+
+    #define out_pins {GP08}
+
+    #define use_pwm 1
+    #define pwm_count 1
+    #define PWM_PINS {{GP14, "SPINDLE_PWM", 0}}
+    #define default_pwm_frequency 5000
+    #define default_pwm_maxscale 4096
+    #define default_pwm_min_limit 0
+
+    #define SPI_PORT        spi0
+    #define GPIO_SCK        GP18
+    #define GPIO_MOSI       GP19
+    #define GPIO_MISO       GP16
+    #define GPIO_CS         GP17
+    #define GPIO_INT        GP20
+    #define GPIO_RESET      GP21
+    #define LED_GPIO        GP07
+
+    #define use_flexgpio 0
+
+#endif // BOARD_PICOBOB_DLX
 
 
     #define default_pulse_width 2500 // default pulse width in nanoseconds, for the stepgen if not specified in the HAL configuration

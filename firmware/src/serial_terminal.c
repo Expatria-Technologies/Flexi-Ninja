@@ -212,9 +212,11 @@ void process_command(char* command) {
             }
         }
     } else if (strcmp(command, "rp2040_reload") == 0) {
+#if use_flexgpio == 1
         printf("Reloading RP2040...\n");
         int ret = rp2040_reload_flexgpio();
         printf("%s\n", ret == 0 ? "OK" : "FAILED: RP2040 did not respond");
+#endif
     } else if (strcmp(command, "inputs") == 0) {
         printf("Input states:\n");
         printf("Input %04X\n", input_buffer[0]);

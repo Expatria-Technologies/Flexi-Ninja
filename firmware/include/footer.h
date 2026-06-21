@@ -21,6 +21,4 @@
         #endif
     #endif
 
-    #define pico_clock 150000000
-
 #endif

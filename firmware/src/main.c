@@ -249,7 +249,9 @@ void core1_entry() {
     }
     #endif
 
+    #if encoders > 0
     irq_encoder_init(encoder_config, encoder_count, gpio_callback);
+    #endif
 
     while(1){
         if (LED_GPIO != PIN_NULL) gpio_put(LED_GPIO, !timeout_error);
@@ -347,8 +349,9 @@ void core1_entry() {
                 if (old_sety != sety || old_nop != nop) {
                     for (int i=0; i<stepgens; i++){
                         pio_sm_exec(stepgen_pio[i].pio, stepgen_pio[i].sm, pio_encode_jmp(1));
-                        stepgen_pio[i].pio->instr_mem[6] = pio_encode_set(pio_y, sety);
-                        stepgen_pio[i].pio->instr_mem[7] = pio_encode_nop() | pio_encode_delay(nop);
+                        uint16_t prog_addr = stepgen_pio[i].program_address;
+                        stepgen_pio[i].pio->instr_mem[prog_addr + 6] = pio_encode_set(pio_y, sety);
+                        stepgen_pio[i].pio->instr_mem[prog_addr + 7] = pio_encode_nop() | pio_encode_delay(nop);
                     }
                     float cycle_time_ns = 1.0f / pico_clock * 1000000000.0f;
                     printf("New pulse width set: %d\n", pio_settings[rx_buffer->pio_timing].high_cycles * (uint32_t)cycle_time_ns);
@@ -485,6 +488,7 @@ int main() {
 
     #endif
     
+#if use_flexgpio == 1
     if (rp2040_boot_flexgpio() != 0) {
         printf("FATAL: RP2040 boot failed - halting\n");
         for (;;);
@@ -493,6 +497,7 @@ int main() {
 
     flexgpio_init();
     printf("flexgpio init OK\n");
+#endif
 
     multicore_launch_core1(core1_entry);
 
@@ -863,7 +868,9 @@ void handle_data(){
     #endif
 
     // --- Standard GPIO path ---
+#if use_flexgpio == 1
     flexgpio_sync_inputs(tx_buffer->inputs);
+#endif
     tx_buffer->inputs[0] = gpio_get_all64() & 0xFFFFFFFF; // Read all GPIO inputs
     tx_buffer->inputs[1] = gpio_get_all64() >> 32;
     input_buffer[0] = tx_buffer->inputs[0];
@@ -880,7 +887,9 @@ void handle_data(){
             }
         }
     }
+#if use_flexgpio == 1
     flexgpio_push_outputs(rx_buffer->outputs);
+#endif
 
     tx_buffer->step_ring_fill = 0;
     tx_buffer->step_ring_status = 0;

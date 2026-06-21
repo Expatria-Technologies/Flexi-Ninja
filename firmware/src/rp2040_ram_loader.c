@@ -1,5 +1,8 @@
-#include "rp2040_ram_loader.h"
 #include "config.h"
+
+#if use_flexgpio == 1
+
+#include "rp2040_ram_loader.h"
 
 #include <hardware/i2c.h>
 #include <pico/stdlib.h>
@@ -160,3 +163,5 @@ int rp2040_reload_flexgpio(void)
         return -1;
     return rp2040_load_and_run(flexgpio_ram_bin, flexgpio_ram_bin_len);
 }
+
+#endif // use_flexgpio

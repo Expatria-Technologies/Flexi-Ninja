@@ -3,9 +3,22 @@ from pathlib import Path
 
 Import("env")
 
+env_name = env.subst("$PIOENV")
+
+header_map = {
+    "flexi-2350_w5500": "flexi_hal_2350.h",
+    "flexi-2350_spi": "flexi_hal_2350.h",
+    "picobob-dlx": "picobob_dlx.h",
+}
+
+header_name = header_map.get(env_name)
+if not header_name:
+    sys.stderr.write(f"Unknown environment '{env_name}', no board header mapping\n")
+    env.Exit(-1)
+
 FRAMEWORK_DIR = Path(env.PioPlatform().get_package_dir("framework-picosdk"))
-BOARD_HEADER_SRC = Path(env.subst("$PROJECT_DIR")) / "include" / "boards" / "flexi_hal_2350.h"
-BOARD_HEADER_DST = FRAMEWORK_DIR / "src" / "boards" / "include" / "boards" / "flexi_hal_2350.h"
+BOARD_HEADER_SRC = Path(env.subst("$PROJECT_DIR")) / "include" / "boards" / header_name
+BOARD_HEADER_DST = FRAMEWORK_DIR / "src" / "boards" / "include" / "boards" / header_name
 
 if BOARD_HEADER_SRC.is_file():
     BOARD_HEADER_DST.parent.mkdir(parents=True, exist_ok=True)

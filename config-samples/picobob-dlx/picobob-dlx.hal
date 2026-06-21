@@ -1,0 +1,127 @@
+loadrt [KINS]KINEMATICS
+loadrt [EMCMOT]EMCMOT servo_period_nsec=[EMCMOT]SERVO_PERIOD num_joints=[KINS]JOINTS
+
+# Load HAL components
+   loadrt picobob-dlx ip_address="192.168.5.1:8888"
+   loadrt estop_latch names=estop_latch
+   loadrt and2 names=estop_and
+   loadrt not names=estop_not
+   loadrt or2 names=estop_or
+   loadrt toggle2nist names=hold_toggle,paused_toggle
+
+# Add HAL components to thread
+   addf motion-command-handler servo-thread
+   addf picobob-dlx.watchdog-process servo-thread
+   addf picobob-dlx.process-send servo-thread
+   addf picobob-dlx.process-recv servo-thread
+   addf motion-controller servo-thread
+   addf estop_latch servo-thread
+   addf estop_not servo-thread
+   addf estop_and servo-thread
+   addf estop_or servo-thread
+   addf hold_toggle servo-thread
+
+# Toggle2nist states & mux selectors
+   net program-is-paused hold_toggle.is-on <= halui.program.is-paused
+
+# Spindle Control
+   # VFD via vfdmod. Comment this out if using hy_vfd.
+   loadusr -W vfdmod vfdmod.ini
+   loadrt scale names=spindle_fb_scale
+   addf spindle_fb_scale servo-thread
+   setp spindle_fb_scale.gain 0.016666667
+   net spindle-speed-cmd vfdmod.spindle.rpm-in <= spindle.0.speed-out
+   net spindle-fb-scale-in vfdmod.spindle.rpm-out => spindle_fb_scale.in
+   net spindle-speed-fb spindle_fb_scale.out => spindle.0.speed-in
+   net spindle-at-speed vfdmod.spindle.at-speed => spindle.0.at-speed
+   net spindle-forward vfdmod.control.run-forward => spindle.0.forward
+   net spindle-reverse vfdmod.control.run-reverse => spindle.0.reverse
+
+   # hy_vfd - uncomment the below if using hy_vfd. Use ttyAMA3 for Pi 4 and ttyAMA2 for Pi 5
+   #loadusr -Wn vfd hy_vfd -n vfd -d /dev/ttyAMA2 -p none -r 9600 -s 1
+   #loadrt scale names=spindle_fb_scale
+   #addf spindle_fb_scale servo-thread
+   #setp spindle_fb_scale.gain 0.016666667 # 1/60  to convert rpm to rps for qtdrangon_hd
+   #setp vfd.enable 1
+   #net spindle-speed-cmd vfd.speed-command <= spindle.0.speed-out
+   #net spindle-fb-scale-in vfd.spindle-speed-fb => spindle_fb_scale.in
+   #net spindle-speed-fb spindle_fb_scale.out => spindle.0.speed-in
+   #net spindle-at-speed vfd.spindle-at-speed => spindle.0.at-speed
+   #net spindle-forward vfd.spindle-forward => spindle.0.forward
+   #net spindle-reverse vfd.spindle-reverse => spindle.0.reverse
+   #net spindle-on vfd.spindle-on => spindle.0.on
+   #net spindle-comm-ok <= vfd.hycomm-ok
+
+   # Analog spindle control via PWM output - Uncomment if using PWM instead of VFD.
+   #loadrt scale names=spindle_speed_scale
+   #loadrt conv_float_u32 names=spindle_speed_scale_u32
+   #loadrt scale names=spindle_fb_scale
+   #addf spindle_speed_scale servo-thread
+   #addf spindle_speed_scale_u32 servo-thread
+   #addf spindle_fb_scale servo-thread
+   #setp spindle_fb_scale.gain 0.016666667 # 1/60  to convert rpm to rps for qtdrangon_hd
+   #setp spindle_speed_scale.gain 0.170667 # Desired output range is 0-4096. For 24000rpm spindle, (4096/24000) scale = 0.170667.
+   #net spindle-scale-in spindle.0.speed-out-abs => spindle_speed_scale.in
+   #net spindle-scale-u32-in spindle_speed_scale.out => spindle_speed_scale_u32.in
+   #net spindle-speed-scaled spindle_speed_scale_u32.out => picobob-dlx.SPINDLE_PWM.duty
+   #net spindle-enable spindle.0.on => picobob-dlx.SPINDLE_PWM.enable picobob-dlx.output.gp8 spindle.0.at-speed
+   #net spindle-scale-in => spindle_fb_scale.in
+   #net spindle-speed-fb spindle_fb_scale.out => spindle.0.speed-in
+
+# E-stop loop: HALT pin + comms status
+   net user-enable-out iocontrol.0.user-enable-out => picobob-dlx.io-ready-in estop_not.in
+   net gui-estop-inv estop_not.out => estop_and.in0
+   net machine-on halui.machine.is-on => estop_and.in1
+   net gui-estop-trip estop_and.out => estop_or.in0
+   net halt-fault picobob-dlx.input.HALT-not => estop_or.in1
+   net estop-fault estop_or.out => estop_latch.fault-in
+   net user-request-enable iocontrol.0.user-request-enable => estop_latch.reset
+   net comms-ok picobob-dlx.connected => estop_latch.ok-in
+   net linuxcnc-enable estop_latch.ok-out => iocontrol.0.emc-enable-in
+
+# Joint 0 - X axis
+   setp picobob-dlx.stepgen.0.step-scale [JOINT_0]SCALE
+   setp picobob-dlx.stepgen.0.dir-setup [JOINT_0]DIR_SETUP
+   net Xpos-cmd joint.0.motor-pos-cmd => picobob-dlx.stepgen.0.command
+   net Xpos-fb picobob-dlx.stepgen.0.feedback => joint.0.motor-pos-fb
+   net X-enable joint.0.amp-enable-out => picobob-dlx.stepgen.0.enable
+   net X-home joint.0.home-sw-in <= picobob-dlx.input.X_LIM-not
+
+# Joint 1 - Y axis
+   setp picobob-dlx.stepgen.1.step-scale [JOINT_1]SCALE
+   setp picobob-dlx.stepgen.1.dir-setup [JOINT_1]DIR_SETUP
+   net Ypos-cmd joint.1.motor-pos-cmd => picobob-dlx.stepgen.1.command
+   net Ypos-fb picobob-dlx.stepgen.1.feedback => joint.1.motor-pos-fb
+   net Y-enable joint.1.amp-enable-out => picobob-dlx.stepgen.1.enable
+   net Y-home joint.1.home-sw-in <= picobob-dlx.input.Y_LIM-not
+
+# Joint 2 - Z axis
+   setp picobob-dlx.stepgen.2.step-scale [JOINT_2]SCALE
+   setp picobob-dlx.stepgen.2.dir-setup [JOINT_2]DIR_SETUP
+   net Zpos-cmd joint.2.motor-pos-cmd => picobob-dlx.stepgen.2.command
+   net Zpos-fb picobob-dlx.stepgen.2.feedback => joint.2.motor-pos-fb
+   net Z-enable joint.2.amp-enable-out => picobob-dlx.stepgen.2.enable
+   net Z-home joint.2.home-sw-in <= picobob-dlx.input.Z_LIM-not
+
+# Joint 3 - unused (4th axis)
+   # setp picobob-dlx.stepgen.3.step-scale [JOINT_3]SCALE
+   # setp picobob-dlx.stepgen.3.dir-setup [JOINT_3]DIR_SETUP
+   # net Cpos-cmd joint.3.motor-pos-cmd => picobob-dlx.stepgen.3.command
+   # net Cpos-fb picobob-dlx.stepgen.3.feedback => joint.3.motor-pos-fb
+   # net C-enable joint.3.amp-enable-out => picobob-dlx.stepgen.3.enable
+
+# Joint 4 - unused (5th axis)
+   # setp picobob-dlx.stepgen.4.step-scale [JOINT_4]SCALE
+   # setp picobob-dlx.stepgen.4.dir-setup [JOINT_4]DIR_SETUP
+   # net Dpos-cmd joint.4.motor-pos-cmd => picobob-dlx.stepgen.4.command
+   # net Dpos-fb picobob-dlx.stepgen.4.feedback => joint.4.motor-pos-fb
+   # net D-enable joint.4.amp-enable-out => picobob-dlx.stepgen.4.enable
+
+# Pulse width from INI
+   setp picobob-dlx.stepgen.pulse-width [PICOBOB_DLX]PULSE_WIDTH
+
+# Probe input
+   net probe-input motion.probe-input <= picobob-dlx.input.PROBE
+
+# Tool Change
+   net tool-prepare-loopback iocontrol.0.tool-prepare => iocontrol.0.tool-prepared

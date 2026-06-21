@@ -1,0 +1,26 @@
+{
+  "build": {
+    "cpu": "cortex-m0plus",
+    "f_cpu": "125000000L",
+    "hwids": [["0x2E8A", "0x000A"]],
+    "mcu": "rp2040",
+    "pico_board": "picobob_dlx"
+  },
+  "debug": {
+    "openocd_target": "rp2040.cfg",
+    "svd_path": "rp2040.svd"
+  },
+  "frameworks": ["picosdk"],
+  "name": "PicoBOB DLX",
+  "platform": "raspberrypi",
+  "upload": {
+    "maximum_ram_size": 264000,
+    "maximum_size": 2097152,
+    "protocol": "picotool",
+    "protocols": ["picotool", "cmsis-dap"],
+    "use_1200bps_touch": true,
+    "require_upload_port": false
+  },
+  "url": "https://github.com/Expatria-Technologies/PicoBOB-DLX",
+  "vendor": "Expatria"
+}

@@ -1,0 +1,34 @@
+#ifndef _BOARDS_PICOBOB_DLX_H
+#define _BOARDS_PICOBOB_DLX_H
+
+#define EXPATRIA_PICOBOB_DLX
+
+// --- UART ---
+#ifndef PICO_DEFAULT_UART
+#define PICO_DEFAULT_UART 0
+#endif
+#ifndef PICO_DEFAULT_UART_TX_PIN
+#define PICO_DEFAULT_UART_TX_PIN 28
+#endif
+#ifndef PICO_DEFAULT_UART_RX_PIN
+#define PICO_DEFAULT_UART_RX_PIN 29
+#endif
+#ifndef PICO_DEFAULT_UART_BAUD_RATE
+#define PICO_DEFAULT_UART_BAUD_RATE 115200
+#endif
+
+// --- LED ---
+#ifndef PICO_DEFAULT_LED_PIN
+#define PICO_DEFAULT_LED_PIN 7
+#endif
+
+// --- FLASH (W25Q128JVSIQ, 16MB, standard QSPI mapping) ---
+#define PICO_BOOT_STAGE2_CHOOSE_W25Q080 1
+#ifndef PICO_FLASH_SPI_CLKDIV
+#define PICO_FLASH_SPI_CLKDIV 2
+#endif
+#ifndef PICO_FLASH_SIZE_BYTES
+#define PICO_FLASH_SIZE_BYTES (16 * 1024 * 1024)
+#endif
+
+#endif

@@ -11,3 +11,5 @@ cmake --build "$build_dir" --target flexi-ninja
 sudo cmake --install "$build_dir" --component flexi-ninja
 cmake --build "$build_dir" --target flexi-ninja-eth
 sudo cmake --install "$build_dir" --component flexi-ninja-eth
+cmake --build "$build_dir" --target picobob-dlx
+sudo cmake --install "$build_dir" --component picobob-dlx

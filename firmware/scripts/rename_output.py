@@ -9,6 +9,7 @@ def rename_after_build(target, source, env):
     names = {
         "flexi-2350_spi": "Flexi-Ninja_FlexiHAL_2350_SPI",
         "flexi-2350_w5500": "Flexi-Ninja_FlexiHAL_2350_W5500",
+        "picobob-dlx": "Flexi-Ninja_PicoBOB_DLX",
     }
     new_name = names.get(env_name)
     if new_name:

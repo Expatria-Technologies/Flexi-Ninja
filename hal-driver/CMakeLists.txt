@@ -41,7 +41,7 @@ set(HAL_DRIVER_BUILD_DEPS
     ${HAL_DRIVER_MODULE_DEPS}
 )
 
-function(add_linuxcnc_rt_module module_name source_name)
+function(add_linuxcnc_rt_module module_name source_name board_define)
     set(module_source "${CMAKE_CURRENT_SOURCE_DIR}/${source_name}")
     if(NOT EXISTS "${module_source}")
         message(FATAL_ERROR "Missing HAL driver source: ${module_source}")
@@ -57,7 +57,7 @@ include @LINUXCNC_MODINC@
 EXTRA_CFLAGS += -I@CMAKE_CURRENT_SOURCE_DIR@
 EXTRA_CFLAGS += -I@LINUXCNC_INCLUDE_DIR@
 EXTRA_CFLAGS += -DMODULE_NAME=\"@module_name@\"
-EXTRA_CFLAGS += -DBOARD_FLEXI_2350
+EXTRA_CFLAGS += -D@board_define@
 
 @module_name@.o: @module_source@
 	$(ECHO) Compiling realtime $<
@@ -94,12 +94,14 @@ EXTRA_CFLAGS += -DBOARD_FLEXI_2350
     )
 endfunction()
 
-add_linuxcnc_rt_module(flexi-ninja flexi-ninja.c)
-add_linuxcnc_rt_module(flexi-ninja-eth flexi-ninja-eth.c)
+add_linuxcnc_rt_module(flexi-ninja flexi-ninja.c BOARD_FLEXI_2350)
+add_linuxcnc_rt_module(flexi-ninja-eth flexi-ninja-eth.c BOARD_FLEXI_2350)
+add_linuxcnc_rt_module(picobob-dlx picobob-dlx.c BOARD_PICOBOB_DLX)
 
 add_custom_target(hal-modules)
 add_dependencies(hal-modules flexi-ninja)
 add_dependencies(hal-modules flexi-ninja-eth)
+add_dependencies(hal-modules picobob-dlx)
 
 message(STATUS "LinuxCNC include dir: ${LINUXCNC_INCLUDE_DIR}")
 message(STATUS "LinuxCNC modinc: ${LINUXCNC_MODINC}")
