@@ -75,9 +75,9 @@ uint32_t total_cycles;
 #define offset 10000
 
 const GpioPin input_pins[] = INPUT_PINS;
-const uint8_t output_pins[] = out_pins;
+const OutputPin output_pins[] = OUTPUT_PINS;
 const uint8_t in_pins_no = sizeof(input_pins) / sizeof(input_pins[0]);
-const uint8_t out_pins_no = sizeof(output_pins);
+const uint8_t out_pins_no = sizeof(output_pins) / sizeof(output_pins[0]);
 const ExpanderPin ex_input_pins[] = EX_INPUT_PINS;
 const ExpanderPin ex_output_pins[] = EX_OUTPUT_PINS;
 const uint8_t ex_in_count = sizeof(ex_input_pins) / sizeof(ex_input_pins[0]);
@@ -541,9 +541,9 @@ static int bb_hal_setup_pins(module_data_t *d, int j, int comp_id,
     }
 
     for (int i = 0; i < out_pins_no; i++) {
-        if (output_pins[i] == GP_NULL) continue;
+        if (output_pins[i].gpio == GP_NULL) continue;
         memset(name, 0, nsize);
-        snprintf(name, nsize, "%s.output.gp%d", prefix, output_pins[i]);
+        snprintf(name, nsize, "%s.output.%s", prefix, output_pins[i].name);
         r = hal_pin_bit_newf(HAL_IN, &d->output[i], comp_id, name, j);
         if (r < 0) {
             rtapi_print_msg(RTAPI_MSG_ERR,
@@ -610,7 +610,7 @@ static void bb_hal_process_send(module_data_t *d)
     uint32_t outs1 = 0;
 
     for (uint8_t i = 0; i < out_pins_no; i++) {
-        if (output_pins[i] == GP_NULL) continue;
+        if (output_pins[i].gpio == GP_NULL) continue;
         if (i < 32) {
             outs0 |= *d->output[i] == 1 ? 1u << i : 0;
         } else {

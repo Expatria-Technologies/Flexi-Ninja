@@ -24,7 +24,7 @@ transmission_pico_pc_t *tx_buffer;
 // ==================== I/O buffers ====================
 volatile uint32_t input_buffer[4];      // Input register mirror for diagnostics / terminal
 const GpioPin input_pins[] = INPUT_PINS;
-const uint8_t output_pins[] = out_pins;
+const OutputPin output_pins[] = OUTPUT_PINS;
 // =====================================================
 
 uint8_t first_send = 1;
@@ -278,11 +278,11 @@ void core1_entry() {
                 checksum_error = 0;
                 first_data = true;
                 first_send = 1;
-                #ifdef out_pins
+                #ifdef OUTPUT_PINS
                     if (sizeof(output_pins) / sizeof(output_pins[0]) > 0){
                         for (int i = 0; i < sizeof(output_pins) / sizeof(output_pins[0]); i++) {
-                            if (output_pins[i] != PIN_NULL)
-                                gpio_put(output_pins[i], 0); // reset outputs
+                            if (output_pins[i].gpio != PIN_NULL)
+                                gpio_put(output_pins[i].gpio, 0); // reset outputs
                         }
                     }
                 #endif
@@ -503,14 +503,14 @@ int main() {
 
     PIO pio = pio0;
     int p = 0;
-    #ifdef out_pins
+    #ifdef OUTPUT_PINS
     printf("Output GPIO: ");
     for (int i = 0; i < sizeof(output_pins) / sizeof(output_pins[0]); i++) {
-        if (output_pins[i] != PIN_NULL) {
-            gpio_init(output_pins[i]);
-            gpio_set_dir(output_pins[i], GPIO_OUT);
-            gpio_put(output_pins[i], 0);
-            printf("%d ", output_pins[i]);
+        if (output_pins[i].gpio != PIN_NULL) {
+            gpio_init(output_pins[i].gpio);
+            gpio_set_dir(output_pins[i].gpio, GPIO_OUT);
+            gpio_put(output_pins[i].gpio, 0);
+            printf("%s(%d) ", output_pins[i].name, output_pins[i].gpio);
         }
     }
     printf("\n");
@@ -879,11 +879,11 @@ void handle_data(){
     if (sizeof(output_pins) / sizeof(output_pins[0])>0){
         //set output pins
         for (uint8_t i = 0; i < sizeof(output_pins) / sizeof(output_pins[0]); i++) {
-            if (output_pins[i] == PIN_NULL) continue;
-            if (output_pins[i] < 32){
-                gpio_put(output_pins[i], (rx_buffer->outputs[0] >> i) & 1);
+            if (output_pins[i].gpio == PIN_NULL) continue;
+            if (output_pins[i].gpio < 32){
+                gpio_put(output_pins[i].gpio, (rx_buffer->outputs[0] >> i) & 1);
             } else {
-                gpio_put(output_pins[i], (rx_buffer->outputs[1] >> (i & 31)) & 1);
+                gpio_put(output_pins[i].gpio, (rx_buffer->outputs[1] >> (i & 31)) & 1);
             }
         }
     }

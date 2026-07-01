@@ -31,6 +31,11 @@
     } PwmPin;
 
     typedef struct {
+        uint8_t gpio;
+        const char name[16];
+    } OutputPin;
+
+    typedef struct {
         uint8_t ex_num;
         const char name[16];
     } ExpanderPin;
@@ -87,7 +92,7 @@
         {GP45, "AUXIN2", 1}, \
     }
 
-    #define out_pins {PIN_NULL}
+    #define OUTPUT_PINS {{PIN_NULL, ""}}
 
     // PWM for spindle 0-10v
     #define use_pwm 1
@@ -187,7 +192,7 @@
         {GP15, "HALT_KEYPAD", 1}, \
     }
 
-    #define out_pins {GP08}
+    #define OUTPUT_PINS {{GP08, "MOTOR_EN"}}
 
     #define use_pwm 1
     #define pwm_count 1
