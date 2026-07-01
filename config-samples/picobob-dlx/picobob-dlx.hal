@@ -4,11 +4,9 @@ loadrt [EMCMOT]EMCMOT servo_period_nsec=[EMCMOT]SERVO_PERIOD num_joints=[KINS]JO
 # Load HAL components
    loadrt picobob-dlx ip_address="192.168.5.1:8888"
    loadrt estop_latch names=estop_latch
-   loadrt and2 names=estop_and
    loadrt not names=estop_not
+   loadrt and2 names=estop_and
    loadrt or2 names=estop_or
-   loadrt toggle2nist names=hold_toggle,paused_toggle
-
 # Add HAL components to thread
    addf motion-command-handler servo-thread
    addf picobob-dlx.watchdog-process servo-thread
@@ -19,10 +17,6 @@ loadrt [EMCMOT]EMCMOT servo_period_nsec=[EMCMOT]SERVO_PERIOD num_joints=[KINS]JO
    addf estop_not servo-thread
    addf estop_and servo-thread
    addf estop_or servo-thread
-   addf hold_toggle servo-thread
-
-# Toggle2nist states & mux selectors
-   net program-is-paused hold_toggle.is-on <= halui.program.is-paused
 
 # Spindle Control
    # VFD via vfdmod. Comment this out if using hy_vfd.
