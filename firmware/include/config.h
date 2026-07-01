@@ -167,11 +167,11 @@
 
     #define stepgens 5
     #define STEPGEN_CONFIG { \
-        {GP22, GP09, 0}, \
-        {GP23, GP10, 0}, \
-        {GP24, GP11, 0}, \
-        {GP25, GP12, 0}, \
-        {GP26, GP13, 0}, \
+        {GP22, GP09, 1}, \
+        {GP23, GP10, 1}, \
+        {GP24, GP11, 1}, \
+        {GP25, GP12, 1}, \
+        {GP26, GP13, 1}, \
     }
 
     #define encoders 0
