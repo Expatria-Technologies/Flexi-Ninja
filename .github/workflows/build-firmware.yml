@@ -8,7 +8,7 @@ jobs:
   build:
     strategy:
       matrix:
-        env: [flexi-2350_spi, flexi-2350_w5500]
+        env: [flexi-2350_spi, flexi-2350_w5500, picobob-dlx]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
