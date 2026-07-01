@@ -140,7 +140,7 @@ static inline void __time_critical_func(apply_stepgen_commands)(const uint32_t *
                 tight_loop_contents();
             }
             if (put_timeout > 0) {
-                gpio_put(stepgen_config[i].dir_pin, (command_word >> 31));
+                gpio_put(stepgen_config[i].dir_pin, (command_word >> 31) ^ stepgen_config[i].dir_invert);
                 if (rx_buffer->dir_setup_ns[i] > 0) {
                     uint32_t cycles = (uint32_t)rx_buffer->dir_setup_ns[i] * 3 / 20 + 1;
                     busy_wait_at_least_cycles(cycles);

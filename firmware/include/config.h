@@ -52,19 +52,20 @@
         uint8_t step_pin;
         uint8_t dir_pin;
         uint8_t invert;
+        uint8_t dir_invert;
     } StepgenPin;
 
 #ifdef BOARD_FLEXI_2350
 
     #define stepgens 6
-    // Step, dir, step invert
+    // Step, dir, step invert, dir invert
     #define STEPGEN_CONFIG { \
-        {GP12, GP13, 0}, \
-        {GP14, GP15, 0}, \
-        {GP16, GP17, 0}, \
-        {GP18, GP19, 0}, \
-        {GP20, GP21, 0}, \
-        {GP22, GP23, 0}, \
+        {GP12, GP13, 0, 0}, \
+        {GP14, GP15, 0, 0}, \
+        {GP16, GP17, 0, 0}, \
+        {GP18, GP19, 0, 0}, \
+        {GP20, GP21, 0, 0}, \
+        {GP22, GP23, 0, 0}, \
     }
     
     #define encoders 2
@@ -172,12 +173,13 @@
 #ifdef BOARD_PICOBOB_DLX
 
     #define stepgens 5
+    // Step, dir, step invert, dir invert
     #define STEPGEN_CONFIG { \
-        {GP22, GP09, 1}, \
-        {GP23, GP10, 1}, \
-        {GP24, GP11, 1}, \
-        {GP25, GP12, 1}, \
-        {GP26, GP13, 1}, \
+        {GP22, GP09, 1, 1}, \
+        {GP23, GP10, 1, 1}, \
+        {GP24, GP11, 1, 1}, \
+        {GP25, GP12, 1, 1}, \
+        {GP26, GP13, 1, 1}, \
     }
 
     #define encoders 0
@@ -197,7 +199,7 @@
 
     #define use_pwm 1
     #define pwm_count 1
-    #define PWM_PINS {{GP14, "SPINDLE_PWM", 0}}
+    #define PWM_PINS {{GP14, "SPINDLE_PWM", 1}}
     #define default_pwm_frequency 5000
     #define default_pwm_maxscale 4096
     #define default_pwm_min_limit 0
