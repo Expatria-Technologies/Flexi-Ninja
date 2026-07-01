@@ -509,8 +509,12 @@ int main() {
         if (output_pins[i].gpio != PIN_NULL) {
             gpio_init(output_pins[i].gpio);
             gpio_set_dir(output_pins[i].gpio, GPIO_OUT);
+            if (output_pins[i].invert) {
+                gpio_set_outover(output_pins[i].gpio, GPIO_OVERRIDE_INVERT);
+            }
             gpio_put(output_pins[i].gpio, 0);
-            printf("%s(%d) ", output_pins[i].name, output_pins[i].gpio);
+            printf("%s(%d)%s ", output_pins[i].name, output_pins[i].gpio,
+                   output_pins[i].invert ? " inv" : "");
         }
     }
     printf("\n");

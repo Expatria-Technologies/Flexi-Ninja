@@ -33,6 +33,7 @@
     typedef struct {
         uint8_t gpio;
         const char name[16];
+        int8_t invert;
     } OutputPin;
 
     typedef struct {
@@ -92,7 +93,7 @@
         {GP45, "AUXIN2", 1}, \
     }
 
-    #define OUTPUT_PINS {{PIN_NULL, ""}}
+    #define OUTPUT_PINS {{PIN_NULL, "", 0}}
 
     // PWM for spindle 0-10v
     #define use_pwm 1
@@ -192,7 +193,7 @@
         {GP15, "HALT_KEYPAD", 1}, \
     }
 
-    #define OUTPUT_PINS {{GP08, "MOTOR_EN"}}
+    #define OUTPUT_PINS {{GP08, "MOTOR_EN", 1}}
 
     #define use_pwm 1
     #define pwm_count 1
