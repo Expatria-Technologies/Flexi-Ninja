@@ -126,7 +126,7 @@ loadrt [EMCMOT]EMCMOT servo_period_nsec=[EMCMOT]SERVO_PERIOD num_joints=[KINS]JO
    # net C-home joint.5.home-sw-in <= flexi-ninja-eth.input.C_LIM-not
 
 # Pulse width and DIR setup time from INI
-   setp flexi-ninja.stepgen.pulse-width [FLEXI_NINJA]PULSE_WIDTH
+   setp flexi-ninja-eth.stepgen.pulse-width [FLEXI_NINJA]PULSE_WIDTH
    setp flexi-ninja-eth.stepgen.dir-setup [FLEXI_NINJA]DIR_SETUP
 
 # Encoder filter from INI

@@ -108,7 +108,7 @@ loadrt [EMCMOT]EMCMOT servo_period_nsec=[EMCMOT]SERVO_PERIOD num_joints=[KINS]JO
 
 # Pulse width and DIR setup time from INI
    setp picobob-dlx.stepgen.pulse-width [PICOBOB_DLX]PULSE_WIDTH
-   setp picobob-dlx.stepgen.dir-setup DIR_SETUP
+   setp picobob-dlx.stepgen.dir-setup [PICOBOB_DLX]DIR_SETUP
 
 # Probe input
    net probe-input motion.probe-input <= picobob-dlx.input.PROBE
