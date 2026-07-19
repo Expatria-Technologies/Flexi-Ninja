@@ -97,7 +97,7 @@ typedef struct {
     hal_bit_t *mode[stepgens];
     hal_bit_t *enable[stepgens];
     hal_u32_t *pulse_width;
-    hal_u32_t *dir_setup_ns[stepgens];
+    hal_u32_t *dir_setup_ns;
     #endif
     #if encoders > 0
     hal_s32_t *raw_count[encoders];
@@ -184,6 +184,7 @@ typedef struct {
     bool watchdog_running;
     bool error_triggered;
     bool first_data[stepgens];
+    int8_t last_dir[stepgens];
     float delta_pos[encoders];
     int32_t delta_count[encoders];
     int32_t delta_count_accum[encoders];
@@ -849,7 +850,7 @@ static void udp_io_process_send(void *arg, long period)
                 float total_per_step = (float)(total_cycles / i);
                 if (total_per_step >= 2.0f * (float)pio_settings[pio_index].high_cycles + (float)dormant_cycles) {
                     step_counter = (uint32_t)(total_per_step - (float)pio_settings[pio_index].high_cycles - (float)dormant_cycles);
-                    pio_cmd = (uint32_t)(step_counter << 10 | i);
+                    pio_cmd = (uint32_t)(((step_counter & 0xFFFFF) << 12) | i);
                     timing[i] = pio_cmd;
                     max_steps_per_cycle = i;
                 }
@@ -898,8 +899,10 @@ static void udp_io_process_send(void *arg, long period)
                 if (d->prev_pos[i] < d->curr_pos[i]) {
                     sign = 1;
                 }
+                uint8_t dir_changed = (steps > 0) ? (sign != d->last_dir[i]) : 0;
                 if (steps > 0) {
-                    cmd[i] = (timing[steps] | (sign << 31));
+                    cmd[i] = (timing[steps] | (dir_changed << 11) | (sign << 10));
+                    d->last_dir[i] = sign;
                     if (sign == 1) {
                         d->prev_pos[i] += steps;
                     } else {
@@ -928,7 +931,9 @@ static void udp_io_process_send(void *arg, long period)
                 }
                 #endif
                 if (steps_per_cycle > 0) {
-                    cmd[i] = timing[steps_per_cycle] | (sign << 31);
+                    uint8_t dir_changed = (sign != d->last_dir[i]);
+                    cmd[i] = timing[steps_per_cycle] | (dir_changed << 11) | (sign << 10);
+                    d->last_dir[i] = sign;
                 } else {
                     cmd[i] = 0;
                 }
@@ -936,8 +941,8 @@ static void udp_io_process_send(void *arg, long period)
         }
         for (uint8_t i = 0; i < stepgens; i++) {
             tx_buffer->stepgen_command[i] = cmd[i];
-            tx_buffer->dir_setup_ns[i] = (uint16_t)*d->dir_setup_ns[i];
         }
+        tx_buffer->dir_setup_ns = (uint16_t)*d->dir_setup_ns;
         tx_buffer->pio_timing = nearest(*d->pulse_width);
         #endif
 
@@ -1020,8 +1025,10 @@ int rtapi_app_main(void)
         hal_data[j].last_received_time = 0;
         hal_data[j].watchdog_expired = 0;
         hal_data[j].watchdog_running = 0;
-        for (int k = 0; k < stepgens; k++)
+        for (int k = 0; k < stepgens; k++) {
             hal_data[j].first_data[k] = true;
+            hal_data[j].last_dir[k] = -1;
+        }
         hal_data[j].error_triggered = false;
 
         rtapi_print_msg(RTAPI_MSG_INFO, module_name ".%d: init_spi\n", j);
@@ -1092,8 +1099,8 @@ int rtapi_app_main(void)
             PIN_FLOAT(&hal_data[j].feedback[i], HAL_OUT, "%s.stepgen.%d.feedback", prefix, i);
             PIN_BIT_INIT(&hal_data[j].mode[i], HAL_IN, 0, "%s.stepgen.%d.mode", prefix, i);
             PIN_BIT_INIT(&hal_data[j].enable[i], HAL_IN, 0, "%s.stepgen.%d.enable", prefix, i);
-            PIN_U32_INIT(&hal_data[j].dir_setup_ns[i], HAL_IN, 2500, "%s.stepgen.%d.dir-setup", prefix, i);
         }
+        PIN_U32_INIT(&hal_data[j].dir_setup_ns, HAL_IN, 2500, "%s.stepgen.dir-setup", prefix);
         #endif
         #if encoders > 0
         #if use_stepcounter == 1

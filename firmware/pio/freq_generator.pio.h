@@ -13,7 +13,7 @@
 // -------------- //
 
 #define freq_generator_wrap_target 0
-#define freq_generator_wrap 12
+#define freq_generator_wrap 22
 #define freq_generator_pio_version 0
 
 static const uint16_t freq_generator_program_instructions[] = {
@@ -21,23 +21,33 @@ static const uint16_t freq_generator_program_instructions[] = {
     0xe081, //  0: set    pindirs, 1
     0x80a0, //  1: pull   block
     0x602a, //  2: out    x, 10
-    0x0045, //  3: jmp    x--, 5
-    0x0001, //  4: jmp    1
-    0xe001, //  5: set    pins, 1
-    0xe058, //  6: set    y, 24
-    0xa842, //  7: nop                           [8]
-    0x0087, //  8: jmp    y--, 7
-    0xe000, //  9: set    pins, 0
-    0xa047, // 10: mov    y, osr
-    0x008b, // 11: jmp    y--, 11
-    0x0003, // 12: jmp    3
+    0x6041, //  3: out    y, 1
+    0xa002, //  4: mov    pins, y
+    0x6041, //  5: out    y, 1
+    0x006d, //  6: jmp    !y, 13
+    0xe04c, //  7: set    y, 12
+    0x008a, //  8: jmp    y--, 10
+    0x000d, //  9: jmp    13
+    0xbf42, // 10: nop                           [31]
+    0xbf42, // 11: nop                           [31]
+    0x0008, // 12: jmp    8
+    0x004f, // 13: jmp    x--, 15
+    0x0001, // 14: jmp    1
+    0xe001, // 15: set    pins, 1
+    0xe058, // 16: set    y, 24
+    0xa842, // 17: nop                           [8]
+    0x0091, // 18: jmp    y--, 17
+    0xe000, // 19: set    pins, 0
+    0xa047, // 20: mov    y, osr
+    0x0095, // 21: jmp    y--, 21
+    0x000d, // 22: jmp    13
             //     .wrap
 };
 
 #if !PICO_NO_HARDWARE
 static const struct pio_program freq_generator_program = {
     .instructions = freq_generator_program_instructions,
-    .length = 13,
+    .length = 23,
     .origin = -1,
     .pio_version = freq_generator_pio_version,
 #if PICO_PIO_VERSION > 0

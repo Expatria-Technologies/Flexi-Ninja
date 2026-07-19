@@ -71,6 +71,9 @@ uint8_t sety = 0;
 uint8_t nop = 0;
 uint8_t old_sety = 0;
 uint8_t old_nop = 0;
+uint8_t old_dir_n = 0;
+uint8_t old_dir_d1 = 0;
+uint8_t old_dir_d2 = 0;
 
 uint8_t connected = 0;
 uint8_t timer_started = 0;
@@ -140,14 +143,13 @@ static inline void __time_critical_func(apply_stepgen_commands)(const uint32_t *
                 tight_loop_contents();
             }
             if (put_timeout > 0) {
-                gpio_put(stepgen_config[i].dir_pin, (command_word >> 31) ^ stepgen_config[i].dir_invert);
-                if (rx_buffer->dir_setup_ns[i] > 0) {
-                    uint32_t cycles = (uint32_t)rx_buffer->dir_setup_ns[i] * 3 / 20 + 1;
-                    busy_wait_at_least_cycles(cycles);
+                uint32_t cmd = command_word;
+                if (stepgen_config[i].dir_invert) {
+                    cmd ^= (1u << 10);
                 }
-                pio_sm_put(stepgen_pio[i].pio, stepgen_pio[i].sm, command_word & 0x7fffffff);
+                pio_sm_put(stepgen_pio[i].pio, stepgen_pio[i].sm, cmd);
                 int32_t steps = (int32_t)(command_word & 0x3ff);
-                stepgen_position[i] += (command_word >> 31) ? steps : -steps;
+                stepgen_position[i] += ((command_word >> 10) & 1) ? steps : -steps;
             } else {
                 stepgen_overflow |= (1u << i);
             }
@@ -346,17 +348,33 @@ void core1_entry() {
                 sety = pio_settings[rx_buffer->pio_timing].sety & 31;
                 nop = pio_settings[rx_buffer->pio_timing].nop & 31;
 
-                if (old_sety != sety || old_nop != nop) {
+                // dir setup: keep both nop slots at max (31) for widest cap,
+                // scale only the loop COUNT from the requested ns.
+                // Calculated based on requested setup time rather than pulled from a lookup table.
+                uint32_t dir_cycles = (uint32_t)(rx_buffer->dir_setup_ns) * (pico_clock / 1000000) / 1000; // ns -> cyc
+                uint32_t dir_n = (dir_cycles > 2) ? (dir_cycles - 2 + 65) / 66 : 0; // per iter = 4+31+31=66
+                if (dir_n > 31) dir_n = 31;        // set immediate is 5-bit
+                uint8_t dir_d1 = 31, dir_d2 = 31;  // both delay slots fixed at max
+
+                if (old_sety != sety || old_nop != nop ||
+                    old_dir_n != dir_n || old_dir_d1 != dir_d1 || old_dir_d2 != dir_d2) {
                     for (int i=0; i<stepgens; i++){
                         pio_sm_exec(stepgen_pio[i].pio, stepgen_pio[i].sm, pio_encode_jmp(1));
                         uint16_t prog_addr = stepgen_pio[i].program_address;
-                        stepgen_pio[i].pio->instr_mem[prog_addr + 6] = pio_encode_set(pio_y, sety);
-                        stepgen_pio[i].pio->instr_mem[prog_addr + 7] = pio_encode_nop() | pio_encode_delay(nop);
+                        stepgen_pio[i].pio->instr_mem[prog_addr +  7] = pio_encode_set(pio_y, (uint)dir_n);   // dir count
+                        stepgen_pio[i].pio->instr_mem[prog_addr + 10] = pio_encode_nop() | pio_encode_delay(dir_d1); // dir nop 1
+                        stepgen_pio[i].pio->instr_mem[prog_addr + 11] = pio_encode_nop() | pio_encode_delay(dir_d2); // dir nop 2
+                        stepgen_pio[i].pio->instr_mem[prog_addr + 16] = pio_encode_set(pio_y, sety);   // high-time count
+                        stepgen_pio[i].pio->instr_mem[prog_addr + 17] = pio_encode_nop() | pio_encode_delay(nop);   // high-time
                     }
                     float cycle_time_ns = 1.0f / pico_clock * 1000000000.0f;
                     printf("New pulse width set: %d\n", pio_settings[rx_buffer->pio_timing].high_cycles * (uint32_t)cycle_time_ns);
+                    printf("New dir setup set: %d\n", rx_buffer->dir_setup_ns);
                     old_sety = sety;
                     old_nop = nop;
+                    old_dir_n = dir_n;
+                    old_dir_d1 = dir_d1;
+                    old_dir_d2 = dir_d2;
                 }
             }
             #endif
@@ -569,15 +587,15 @@ int main() {
             }
         }
         pio_gpio_init(pio, stepgen_config[i].step_pin);
-        gpio_init(stepgen_config[i].dir_pin);
-        gpio_set_dir(stepgen_config[i].dir_pin, GPIO_OUT);
+        pio_gpio_init(pio, stepgen_config[i].dir_pin);
         if (stepgen_config[i].invert){
            gpio_set_outover(stepgen_config[i].step_pin, GPIO_OVERRIDE_INVERT);
         }
-        gpio_set_dir(stepgen_config[i].step_pin, GPIO_OUT);
         pio_sm_set_consecutive_pindirs(pio, sm, stepgen_config[i].step_pin, 1, true);
+        pio_sm_set_consecutive_pindirs(pio, sm, stepgen_config[i].dir_pin, 1, true);
         pio_sm_config c = freq_generator_program_get_default_config((uint)offset[o]);
         sm_config_set_set_pins(&c, stepgen_config[i].step_pin, 1);
+        sm_config_set_out_pins(&c, stepgen_config[i].dir_pin, 1);
         stepgen_pio[i].program_address = (uint)offset[o];
         pio_sm_init(pio, sm, (uint)offset[o], &c);
         pio_sm_set_enabled(pio, sm, true);

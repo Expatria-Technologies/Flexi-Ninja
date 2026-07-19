@@ -25,7 +25,7 @@ typedef struct{
     uint32_t pwm_frequency[pwm_count];
     uint16_t pio_timing;
     #if stepgens > 0
-    uint16_t dir_setup_ns[stepgens];  // per-axis DIR setup time in nanoseconds
+    uint16_t dir_setup_ns;  // global DIR setup time in nanoseconds (runtime-patched)
     #endif
     #if encoders > 0
     uint8_t enc_control;  // enables encoder index 1st bit encoder 0 2nd encoder 1

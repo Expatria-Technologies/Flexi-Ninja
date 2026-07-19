@@ -75,7 +75,6 @@ loadrt [EMCMOT]EMCMOT servo_period_nsec=[EMCMOT]SERVO_PERIOD num_joints=[KINS]JO
 
 # Joint 0 - X axis
    setp picobob-dlx.stepgen.0.step-scale [JOINT_0]SCALE
-   setp picobob-dlx.stepgen.0.dir-setup [JOINT_0]DIR_SETUP
    net Xpos-cmd joint.0.motor-pos-cmd => picobob-dlx.stepgen.0.command
    net Xpos-fb picobob-dlx.stepgen.0.feedback => joint.0.motor-pos-fb
    net X-enable joint.0.amp-enable-out => picobob-dlx.stepgen.0.enable
@@ -83,7 +82,6 @@ loadrt [EMCMOT]EMCMOT servo_period_nsec=[EMCMOT]SERVO_PERIOD num_joints=[KINS]JO
 
 # Joint 1 - Y axis
    setp picobob-dlx.stepgen.1.step-scale [JOINT_1]SCALE
-   setp picobob-dlx.stepgen.1.dir-setup [JOINT_1]DIR_SETUP
    net Ypos-cmd joint.1.motor-pos-cmd => picobob-dlx.stepgen.1.command
    net Ypos-fb picobob-dlx.stepgen.1.feedback => joint.1.motor-pos-fb
    net Y-enable joint.1.amp-enable-out => picobob-dlx.stepgen.1.enable
@@ -91,7 +89,6 @@ loadrt [EMCMOT]EMCMOT servo_period_nsec=[EMCMOT]SERVO_PERIOD num_joints=[KINS]JO
 
 # Joint 2 - Z axis
    setp picobob-dlx.stepgen.2.step-scale [JOINT_2]SCALE
-   setp picobob-dlx.stepgen.2.dir-setup [JOINT_2]DIR_SETUP
    net Zpos-cmd joint.2.motor-pos-cmd => picobob-dlx.stepgen.2.command
    net Zpos-fb picobob-dlx.stepgen.2.feedback => joint.2.motor-pos-fb
    net Z-enable joint.2.amp-enable-out => picobob-dlx.stepgen.2.enable
@@ -99,20 +96,19 @@ loadrt [EMCMOT]EMCMOT servo_period_nsec=[EMCMOT]SERVO_PERIOD num_joints=[KINS]JO
 
 # Joint 3 - unused (4th axis)
    # setp picobob-dlx.stepgen.3.step-scale [JOINT_3]SCALE
-   # setp picobob-dlx.stepgen.3.dir-setup [JOINT_3]DIR_SETUP
    # net Cpos-cmd joint.3.motor-pos-cmd => picobob-dlx.stepgen.3.command
    # net Cpos-fb picobob-dlx.stepgen.3.feedback => joint.3.motor-pos-fb
    # net C-enable joint.3.amp-enable-out => picobob-dlx.stepgen.3.enable
 
 # Joint 4 - unused (5th axis)
    # setp picobob-dlx.stepgen.4.step-scale [JOINT_4]SCALE
-   # setp picobob-dlx.stepgen.4.dir-setup [JOINT_4]DIR_SETUP
    # net Dpos-cmd joint.4.motor-pos-cmd => picobob-dlx.stepgen.4.command
    # net Dpos-fb picobob-dlx.stepgen.4.feedback => joint.4.motor-pos-fb
    # net D-enable joint.4.amp-enable-out => picobob-dlx.stepgen.4.enable
 
-# Pulse width from INI
+# Pulse width and DIR setup time from INI
    setp picobob-dlx.stepgen.pulse-width [PICOBOB_DLX]PULSE_WIDTH
+   setp picobob-dlx.stepgen.dir-setup DIR_SETUP
 
 # Probe input
    net probe-input motion.probe-input <= picobob-dlx.input.PROBE

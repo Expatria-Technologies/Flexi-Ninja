@@ -3,31 +3,46 @@
 ;
 ; License: MIT
 ;
-; The linuxcnc driver computes the steps need to out in the given time (servo-thread)
-; core0 push the next number of steps and the low time to the pio program
+; The linuxcnc driver computes the steps needed to output in the given time (servo-thread)
+; core0 pushes the next number of steps and the low time to the pio program
 ; x holds the remaining steps
-; osr holds the low cycles count
-; y used for both the high time and low time counter
+; y used for delay loop, high time and low time counter
+; OSR holds the low cycles count after delay extraction
+; DIR is driven via OUT pin range using mov pins, persists across instructions
+; dir_changed (bit 11) gates the dir setup loop: it only runs on direction reversal
 
 .pio_version 0
 
 .program freq_generator
 
-    set pindirs, 1   ;
-again:
-    pull block       ;
-    out x, 10        ; 10 bit number of steps
-check:
-    jmp x--, step    ; dec X, jump if pre-dec X was non-zero
-    jmp again        ; X=0 before dec, no more steps
-step:
-    set pins, 1      ;
-    set y, 24        ;
-loop1:
-    nop [8]          ;
-    jmp y--, loop1   ;
-    set pins, 0      ;
-    mov y, osr       ;
-loop2:
-    jmp y--, loop2   ;
-    jmp check        ; back to decrement check
+    set pindirs, 1              ; addr 0: step pin as output (SET range)
+
+again:                          ; addr 1
+    pull block                  ; addr 1: load command word from TX FIFO
+    out x, 10                  ; addr 2: X = step count (bits [9:0])
+    out y, 1                   ; addr 3: Y = direction (bit 10)
+    mov pins, Y                ; addr 4: DIR = Y (OUT range) — latches, persists
+    out y, 1                   ; addr 5: Y = dir_changed (bit 11)
+    jmp !y, delay_done        ; addr 6: skip settle if direction unchanged
+    set y, 12                  ; addr 7: (+7) dir setup COUNT, runtime-patched
+delay_loop:                     ; addr 8
+    jmp y--, delay_cont         ; addr 8: if Y>0, jump; Y--
+    jmp delay_done             ; addr 9: Y was 0, exit loop
+delay_cont:                     ; addr 10
+    nop [31]                   ; addr 10: (+10) dir setup DELAY slot 1, patched (max)
+    nop [31]                   ; addr 11: (+11) dir setup DELAY slot 2, patched (max)
+    jmp delay_loop             ; addr 12
+delay_done:                     ; addr 13
+    jmp x--, step              ; addr 13: if steps > 0, emit first step
+    jmp again                  ; addr 14: no steps, get next command
+step:                           ; addr 15
+    set pins, 1                ; addr 15: step HIGH — SET range, DIR unaffected
+    set y, 24                  ; addr 16: (+16) high-time loop counter, patched
+loop1:                          ; addr 17
+    nop [8]                    ; addr 17: (+17) high-time delay, patched
+    jmp y--, loop1            ; addr 18
+    set pins, 0                ; addr 19: step LOW — SET range, DIR unaffected
+    mov y, osr                 ; addr 20: Y = low_time (copy, not out — preserves OSR for next step)
+loop2:                          ; addr 21
+    jmp y--, loop2            ; addr 21: low-time loop
+    jmp delay_done            ; addr 22: back to step check (addr 13)

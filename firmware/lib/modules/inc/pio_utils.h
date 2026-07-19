@@ -4,7 +4,7 @@
 
 #define quadrature_encoder_legacy_len 24
 #define quadrature_encoder_substep_len 32
-#define stepgen_len 13
+#define stepgen_len 23
 
 typedef struct {
     PIO pio;

@@ -85,7 +85,6 @@ loadrt [EMCMOT]EMCMOT servo_period_nsec=[EMCMOT]SERVO_PERIOD num_joints=[KINS]JO
 
 # Joint 0 - X axis
    setp flexi-ninja-eth.stepgen.0.step-scale [JOINT_0]SCALE
-   setp flexi-ninja-eth.stepgen.0.dir-setup [JOINT_0]DIR_SETUP
    net Xpos-cmd joint.0.motor-pos-cmd => flexi-ninja-eth.stepgen.0.command
    net Xpos-fb flexi-ninja-eth.stepgen.0.feedback => joint.0.motor-pos-fb
    net X-enable joint.0.amp-enable-out => flexi-ninja-eth.stepgen.0.enable
@@ -93,7 +92,6 @@ loadrt [EMCMOT]EMCMOT servo_period_nsec=[EMCMOT]SERVO_PERIOD num_joints=[KINS]JO
 
 # Joint 1 - Y axis
    setp flexi-ninja-eth.stepgen.1.step-scale [JOINT_1]SCALE
-   setp flexi-ninja-eth.stepgen.1.dir-setup [JOINT_1]DIR_SETUP
    net Ypos-cmd joint.1.motor-pos-cmd => flexi-ninja-eth.stepgen.1.command
    net Ypos-fb flexi-ninja-eth.stepgen.1.feedback => joint.1.motor-pos-fb
    net Y-enable joint.1.amp-enable-out => flexi-ninja-eth.stepgen.1.enable
@@ -101,7 +99,6 @@ loadrt [EMCMOT]EMCMOT servo_period_nsec=[EMCMOT]SERVO_PERIOD num_joints=[KINS]JO
 
 # Joint 2 - Z axis
    setp flexi-ninja-eth.stepgen.2.step-scale [JOINT_2]SCALE
-   setp flexi-ninja-eth.stepgen.2.dir-setup [JOINT_2]DIR_SETUP
    net Zpos-cmd joint.2.motor-pos-cmd => flexi-ninja-eth.stepgen.2.command
    net Zpos-fb flexi-ninja-eth.stepgen.2.feedback => joint.2.motor-pos-fb
    net Z-enable joint.2.amp-enable-out => flexi-ninja-eth.stepgen.2.enable
@@ -109,7 +106,6 @@ loadrt [EMCMOT]EMCMOT servo_period_nsec=[EMCMOT]SERVO_PERIOD num_joints=[KINS]JO
 
 # Joint 3 - second Y axis
    setp flexi-ninja-eth.stepgen.3.step-scale [JOINT_3]SCALE
-   setp flexi-ninja-eth.stepgen.3.dir-setup [JOINT_3]DIR_SETUP
    net Apos-cmd joint.3.motor-pos-cmd => flexi-ninja-eth.stepgen.3.command
    net Apos-fb flexi-ninja-eth.stepgen.3.feedback => joint.3.motor-pos-fb
    net A-enable joint.3.amp-enable-out => flexi-ninja-eth.stepgen.3.enable
@@ -117,7 +113,6 @@ loadrt [EMCMOT]EMCMOT servo_period_nsec=[EMCMOT]SERVO_PERIOD num_joints=[KINS]JO
 
 # Joint 4 - unused (5th axis)
    # setp flexi-ninja-eth.stepgen.4.step-scale [JOINT_4]SCALE
-   # setp flexi-ninja-eth.stepgen.4.dir-setup [JOINT_4]DIR_SETUP
    # net Bpos-cmd joint.4.motor-pos-cmd => flexi-ninja-eth.stepgen.4.command
    # net Bpos-fb flexi-ninja-eth.stepgen.4.feedback => joint.4.motor-pos-fb
    # net B-enable joint.4.amp-enable-out => flexi-ninja-eth.stepgen.4.enable
@@ -125,14 +120,14 @@ loadrt [EMCMOT]EMCMOT servo_period_nsec=[EMCMOT]SERVO_PERIOD num_joints=[KINS]JO
 
 # Joint 5 - unused (6th axis)
    # setp flexi-ninja-eth.stepgen.5.step-scale [JOINT_5]SCALE
-   # setp flexi-ninja-eth.stepgen.5.dir-setup [JOINT_5]DIR_SETUP
    # net Cpos-cmd joint.5.motor-pos-cmd => flexi-ninja-eth.stepgen.5.command
    # net Cpos-fb flexi-ninja-eth.stepgen.5.feedback => joint.5.motor-pos-fb
    # net C-enable joint.5.amp-enable-out => flexi-ninja-eth.stepgen.5.enable
    # net C-home joint.5.home-sw-in <= flexi-ninja-eth.input.C_LIM-not
 
-# Pulse width from INI
-   setp flexi-ninja-eth.stepgen.pulse-width [FLEXI_NINJA]PULSE_WIDTH
+# Pulse width and DIR setup time from INI
+   setp flexi-ninja.stepgen.pulse-width [FLEXI_NINJA]PULSE_WIDTH
+   setp flexi-ninja-eth.stepgen.dir-setup [FLEXI_NINJA]DIR_SETUP
 
 # Encoder filter from INI
    setp flexi-ninja-eth.encoder.ENC1.filter-tau [ENCODER_1]FILTER_TAU
