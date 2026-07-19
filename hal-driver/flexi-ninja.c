@@ -899,13 +899,18 @@ static void udp_io_process_send(void *arg, long period)
                 if (d->prev_pos[i] < d->curr_pos[i]) {
                     sign = 1;
                 }
-                d->prev_pos[i] = d->curr_pos[i];
                 uint8_t dir_changed = (steps > 0) ? (sign != d->last_dir[i]) : 0;
                 if (steps > 0) {
                     cmd[i] = (timing[steps] | (dir_changed << 11) | (sign << 10));
                     d->last_dir[i] = sign;
+                    if (sign == 1) {
+                        d->prev_pos[i] += steps;
+                    } else {
+                        d->prev_pos[i] -= steps;
+                    }
                 } else {
                     cmd[i] = 0;
+                    d->prev_pos[i] = d->curr_pos[i];
                 }
             } else {
                 float velocity = *d->command[i];
