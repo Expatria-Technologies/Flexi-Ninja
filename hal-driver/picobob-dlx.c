@@ -664,10 +664,18 @@ static void udp_io_process_send(void *arg, long period)
             rtapi_print_msg(RTAPI_MSG_INFO, "max pulse_width: %dnS\n", pio_settings[PIO_SETTINGS_COUNT - 1].high_cycles * (int)cycle_time_ns);
             rtapi_print_msg(RTAPI_MSG_INFO, "min pulse_width: %dnS\n", pio_settings[0].high_cycles * (int)cycle_time_ns);
             memset(timing, 0, sizeof(timing));
+            uint16_t max_steps_per_cycle = 0;
             for (uint16_t i = 1; i < 1024; i++) {
-                step_counter = (uint32_t)((float)(total_cycles / i) - pio_settings[pio_index].high_cycles - dormant_cycles);
-                pio_cmd = (uint32_t)(((step_counter & 0xFFFFF) << 12) | i);
-                timing[i] = pio_cmd;
+                float total_per_step = (float)(total_cycles / i);
+                if (total_per_step >= 2.0f * (float)pio_settings[pio_index].high_cycles + (float)dormant_cycles) {
+                    step_counter = (uint32_t)(total_per_step - (float)pio_settings[pio_index].high_cycles - (float)dormant_cycles);
+                    pio_cmd = (uint32_t)(((step_counter & 0xFFFFF) << 12) | i);
+                    timing[i] = pio_cmd;
+                    max_steps_per_cycle = i;
+                }
+            }
+            if (max_steps_per_cycle == 0) {
+                rtapi_print_msg(RTAPI_MSG_ERR, "pulse_width %dns too large for servo period %ldns\n", *d->pulse_width, period);
             }
         }
 
